@@ -17,8 +17,4 @@ public class Config {
 		return new File(Config.getBackendBasePath(), "complete").getAbsolutePath();
 	}
 	
-	public static String getTorrentsIncompletePath() {
-		return new File(Config.getBackendBasePath(), "incomplete").getAbsolutePath();
-	}	
-	
 }

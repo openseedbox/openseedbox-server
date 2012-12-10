@@ -10,8 +10,7 @@ public class Check extends Base {
 		response.contentType = "text/html";		
 		writeLine("<b>Checking setup</b>");		
 		checkPath(Config.getBackendBasePath());
-		checkPath(Config.getTorrentsCompletePath());
-		checkPath(Config.getTorrentsIncompletePath());
+		checkPath(Config.getTorrentsCompletePath());		
 		write("Checking backend class '" + Config.getBackendClassName() + "' can be instantiated...");
 		ITorrentBackend backend;
 		try {

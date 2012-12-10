@@ -1,6 +1,5 @@
 package com.openseedbox.backend.transmission;
 
-import com.openseedbox.code.MessageException;
 import com.google.gson.*;
 import com.openseedbox.Config;
 import com.openseedbox.backend.IFile;
@@ -9,6 +8,7 @@ import com.openseedbox.backend.ISessionStatistics;
 import com.openseedbox.backend.ITorrent;
 import com.openseedbox.backend.ITorrentBackend;
 import com.openseedbox.backend.ITracker;
+import com.openseedbox.code.MessageException;
 import com.openseedbox.code.Util;
 import java.io.File;
 import java.io.IOException;
@@ -26,8 +26,8 @@ public class TransmissionBackend implements ITorrentBackend {
 		if (!this.isRunning()) {
 			String command = String.format(
 				"transmission-daemon --pid-file %s --rpc-bind-address 127.0.0.1 --download-dir %s " +
-				"--incomplete-dir %s --no-auth --dht --lpd --utp --no-global-seedratio",
-				getDaemonPidFilePath(), Config.getTorrentsCompletePath(), Config.getTorrentsIncompletePath());
+				"--no-incomplete-dir --no-auth --dht --lpd --utp --no-global-seedratio",
+				getDaemonPidFilePath(), Config.getTorrentsCompletePath());
 			String output = Util.executeCommand(command);
 			if (!StringUtils.isEmpty(output.trim())) {
 				Logger.info("Oddities starting transmission: %s", output);
@@ -65,12 +65,7 @@ public class TransmissionBackend implements ITorrentBackend {
 		}
 		return false;
 	}
-	
-	private String getDaemonPidFilePath() {
-		return new File(Config.getBackendBasePath(), "daemon.pid").getAbsolutePath();
-	}
-	
-	/* RPC method wrappers */
+		
 	public ISessionStatistics getSessionStatistics() throws MessageException {
 		RpcRequest req = new RpcRequest("session-stats");
 		RpcResponse res = req.getResponse();
@@ -95,33 +90,6 @@ public class TransmissionBackend implements ITorrentBackend {
 	
 	public ITorrent addTorrent(String urlOrMagnet) {
 		return addTorrent(urlOrMagnet, null, false);
-	}
-		
-	protected ITorrent addTorrent(String urlOrMagnet, String base64Contents, Boolean paused) {
-		RpcRequest req = new RpcRequest("torrent-add");
-		if (base64Contents != null) {
-			req.addArgument("metainfo", base64Contents);
-		} else {
-			req.addArgument("filename", urlOrMagnet);
-		}
-		req.addArgument("paused", paused);
-		RpcResponse res = req.getResponse();
-		if (res.success()) {
-			//move torrent to new location now we have the hash
-			ITorrent it = new Gson().fromJson(res.getArguments().get("torrent-added"), TransmissionTorrent.class);
-			req = new RpcRequest("torrent-set-location");
-			String location = new File(Config.getTorrentsCompletePath(), it.getTorrentHash()).getAbsolutePath();
-			req.addArgument("location",  location);
-			req.addArgument("move", true);
-			res = req.getResponse();
-			if (res.success()) {
-				startTorrent(it.getTorrentHash());
-				return it;
-			}
-			throw new MessageException("Unable to move torrent to proper location: " + res.getResultMessage());
-		} else {
-			throw new MessageException("Unable to add torrent: " + res.getResultMessage());
-		}
 	}	
 	
 	public void removeTorrent(String hash) {
@@ -133,8 +101,7 @@ public class TransmissionBackend implements ITorrentBackend {
 	public void removeTorrent(List<String> hashes) {
 		RpcRequest r = new RpcRequest("torrent-remove", hashes);
 		r.addArgument("delete-local-data", false);
-		RpcResponse res = r.getResponse();
-		res.successOrExcept();
+		r.getResponse().successOrExcept();		
 	}
 	
 	public void startTorrent(String torrentHash) {	
@@ -146,8 +113,7 @@ public class TransmissionBackend implements ITorrentBackend {
 	public void startTorrent(List<String> torrentHashes) {
 		RpcRequest r = new RpcRequest("torrent-start");
 		r.addArgument("ids", getTorrentIds(torrentHashes));
-		RpcResponse res = r.getResponse();
-		res.successOrExcept();
+		r.getResponse().successOrExcept();		
 	}
 	
 	public void stopTorrent(String torrentHash) {
@@ -158,94 +124,19 @@ public class TransmissionBackend implements ITorrentBackend {
 	
 	public void stopTorrent(List<String> torrentHashes) {
 		RpcRequest r = new RpcRequest("torrent-stop", torrentHashes);
-		RpcResponse res = r.getResponse();
-		res.successOrExcept();		
+		r.getResponse().successOrExcept();		
 	}
 	
-	public ITorrent torrentStatus(String hashString) {
-		return torrentStatus(Arrays.asList(new String[] { hashString })).get(0);
+	public ITorrent getTorrentStatus(String hashString) {
+		return getTorrentStatus(Arrays.asList(new String[] { hashString })).get(0);
 	}
 	
 	public List<ITorrent> listTorrents() {
-		return torrentStatus((List<String>) null);
+		return getTorrentStatus((List<String>) null);
 	}
 	
-	public List<ITorrent> torrentStatus(List<String> hashes) {
+	public List<ITorrent> getTorrentStatus(List<String> hashes) {
 		return getTorrentInfo(hashes, true, false, false, false);
-	}
-	
-	private List<ITorrent> getTorrentInfo(List<String> hashes, boolean normal, boolean files, boolean peers, boolean trackers) {
-		List<String> fields = new ArrayList<String>();
-		if (normal) {
-			fields.addAll(Arrays.asList(new String[] {
-				"id", "name", "percentDone", "rateDownload", "rateUpload", "errorString",
-				"hashString", "totalSize", "downloadedEver", "uploadedEver", "status",
-				"metadataPercentComplete"
-			}));
-		}
-		if (files) {
-			fields.addAll(Arrays.asList(new String[] {
-				"files", "wanted", "priorities"
-			}));
-		}		
-		if (peers) {
-			fields.addAll(Arrays.asList(new String[] {
-				"peers", "peersFrom"
-			}));
-		}
-		if (trackers) {
-			fields.add("trackerStats");
-		}				 	
-		RpcRequest req = new RpcRequest("torrent-get");
-		req.addArgument("fields", fields);
-		if (hashes != null) {
-			req.addArgument("ids", getTorrentIds(hashes));			
-		}
-		RpcResponse r = req.getResponse();
-		JsonArray torrents = r.getArguments().getAsJsonArray("torrents");
-		Logger.info("Response: %s", torrents.toString());
-		List<ITorrent> ret = new ArrayList<ITorrent>();
-		Gson g = new Gson();
-		for (JsonElement torrent : torrents) {
-			ret.add(g.fromJson(torrent, TransmissionTorrent.class));
-		}
-		return ret;		
-	}
-	
-	public Boolean setFilesWanted(String torrentHash, List<String> ids, List<String> allIds) throws MessageException {
-		RpcRequest rpc = new RpcRequest("torrent-set", torrentHash);
-		rpc.addArgument("files-unwanted", getTorrentIds(allIds)); //unwant all files
-		rpc.addArgument("files-wanted", getTorrentIds(ids));
-		RpcResponse res = rpc.getResponse();
-		return res.successOrExcept();
-	}
-	
-	// priorities: high, normal, low
-	public Boolean setFilePriority(String torrentHash, List<String> ids, String priority) throws MessageException {
-		RpcRequest rpc = new RpcRequest("torrent-set", torrentHash);
-		rpc.arguments.put(String.format("priority-%s", priority), getTorrentIds(ids));
-		RpcResponse res = rpc.getResponse();
-		return res.successOrExcept();
-	}
-	
-	private List<Object> getTorrentIds(List<String> ids) {
-		/* convert the List<String> into a List<Object>. Transmission-daemon wont
-		 * remove torrents by id if the submitted id is a string and not an int.
-		 * However, we might also want to remove torrents by hash in the same request.
-		 * Therefore, we need both strings and ints to be in the ids array */		
-		List<Object> actual_ids = new ArrayList<Object>();
-		for (String eyedee : ids) {
-			try {
-				actual_ids.add(Integer.parseInt(eyedee));
-			} catch (NumberFormatException ex) {
-				actual_ids.add(eyedee);
-			}
-		}	
-		return actual_ids;
-	}	
-
-	private String getTransmissionUrl() throws MessageException {
-		return "http://127.0.0.1:9091/transmission/rpc";
 	}
 
 	public boolean isInstalled() {
@@ -311,13 +202,140 @@ public class TransmissionBackend implements ITorrentBackend {
 		if (downloadLimitBytes > 0) {
 			rpc.addArgument("downloadLimit", downloadLimitBytes);
 		}		
-		RpcResponse res = rpc.getResponse();
-		res.successOrExcept();
+		rpc.getResponse().successOrExcept();		
 	}
 
 	public List<ITorrent> listRecentlyActiveTorrents() {
-		return torrentStatus(Arrays.asList(new String[] { "recently-active" }));
+		return getTorrentStatus(Arrays.asList(new String[] { "recently-active" }));
 	}
+
+	public void modifyTorrentFiles(String hash, List<IFile> files) {
+		RpcRequest rpc = new RpcRequest("torrent-set", hash);
+		List<String> filesUnwanted = new ArrayList<String>();
+		List<String> filesWanted = new ArrayList<String>();
+		List<String> highPriority = new ArrayList<String>();
+		List<String> normalPriority = new ArrayList<String>();
+		List<String> lowPriority = new ArrayList<String>();
+		for (IFile f : files) {
+			if (f.isWanted()) {
+				filesWanted.add(f.getId());
+			} else {
+				filesUnwanted.add(f.getId());
+			}
+			if (f.getPriority() == -1) {
+				lowPriority.add(f.getId());
+			} else if (f.getPriority() == 1) {
+				highPriority.add(f.getId());
+			} else {
+				normalPriority.add(f.getId());
+			}
+		}
+		if (filesUnwanted.size() > 0) {
+			rpc.addArgument("files-unwanted", getTorrentIds(filesUnwanted));
+		}
+		if (filesWanted.size() > 0) {
+			rpc.addArgument("files-wanted", getTorrentIds(filesWanted));		
+		}
+		if (highPriority.size() > 0) {
+			rpc.addArgument("priority-high", getTorrentIds(highPriority));
+		}
+		if (normalPriority.size() > 0) {
+			rpc.addArgument("priority-normal", getTorrentIds(normalPriority));
+		}
+		if (lowPriority.size() > 0) {
+			rpc.addArgument("priority-low", getTorrentIds(lowPriority));
+		}		
+		rpc.getResponse().successOrExcept();		
+	}
+	
+	private ITorrent addTorrent(String urlOrMagnet, String base64Contents, Boolean paused) {
+		RpcRequest req = new RpcRequest("torrent-add");
+		if (base64Contents != null) {
+			req.addArgument("metainfo", base64Contents);
+		} else {
+			req.addArgument("filename", urlOrMagnet);
+		}
+		req.addArgument("paused", paused);
+		RpcResponse res = req.getResponse();
+		if (res.success()) {
+			//move torrent to new location now we have the hash
+			ITorrent it = new Gson().fromJson(res.getArguments().get("torrent-added"), TransmissionTorrent.class);
+			req = new RpcRequest("torrent-set-location");
+			String location = new File(Config.getTorrentsCompletePath(), it.getTorrentHash()).getAbsolutePath();
+			req.addArgument("location",  location);
+			req.addArgument("move", true);
+			res = req.getResponse();
+			if (res.success()) {
+				startTorrent(it.getTorrentHash());
+				return it;
+			}
+			throw new MessageException("Unable to move torrent to proper location: " + res.getResultMessage());
+		} else {
+			throw new MessageException("Unable to add torrent: " + res.getResultMessage());
+		}
+	}	
+	
+	private List<ITorrent> getTorrentInfo(List<String> hashes, boolean normal, boolean files, boolean peers, boolean trackers) {
+		List<String> fields = new ArrayList<String>();
+		if (normal) {
+			fields.addAll(Arrays.asList(new String[] {
+				"id", "name", "percentDone", "rateDownload", "rateUpload", "errorString",
+				"hashString", "totalSize", "downloadedEver", "uploadedEver", "status",
+				"metadataPercentComplete"
+			}));
+		}
+		if (files) {
+			fields.addAll(Arrays.asList(new String[] {
+				"files", "wanted", "priorities"
+			}));
+		}		
+		if (peers) {
+			fields.addAll(Arrays.asList(new String[] {
+				"peers", "peersFrom"
+			}));
+		}
+		if (trackers) {
+			fields.add("trackerStats");
+		}				 	
+		RpcRequest req = new RpcRequest("torrent-get");
+		req.addArgument("fields", fields);
+		if (hashes != null) {
+			req.addArgument("ids", getTorrentIds(hashes));			
+		}
+		RpcResponse r = req.getResponse();
+		JsonArray torrents = r.getArguments().getAsJsonArray("torrents");
+		Logger.info("Response: %s", torrents.toString());
+		List<ITorrent> ret = new ArrayList<ITorrent>();
+		Gson g = new Gson();
+		for (JsonElement torrent : torrents) {
+			ret.add(g.fromJson(torrent, TransmissionTorrent.class));
+		}
+		return ret;		
+	}
+	
+	private List<Object> getTorrentIds(List<String> ids) {
+		/* convert the List<String> into a List<Object>. Transmission-daemon wont
+		 * remove torrents by id if the submitted id is a string and not an int.
+		 * However, we might also want to remove torrents by hash in the same request.
+		 * Therefore, we need both strings and ints to be in the ids array */		
+		List<Object> actual_ids = new ArrayList<Object>();
+		for (String eyedee : ids) {
+			try {
+				actual_ids.add(Integer.parseInt(eyedee));
+			} catch (NumberFormatException ex) {
+				actual_ids.add(eyedee);
+			}
+		}	
+		return actual_ids;
+	}	
+
+	private String getTransmissionUrl() throws MessageException {
+		return "http://127.0.0.1:9091/transmission/rpc";
+	}	
+	
+	private String getDaemonPidFilePath() {
+		return new File(Config.getBackendBasePath(), "daemon.pid").getAbsolutePath();
+	}	
 	
 	public class RpcRequest {
 		

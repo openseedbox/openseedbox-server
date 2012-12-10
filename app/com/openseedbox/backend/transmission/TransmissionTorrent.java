@@ -4,34 +4,37 @@ import com.openseedbox.backend.IFile;
 import com.openseedbox.backend.IPeer;
 import com.openseedbox.backend.ITorrent;
 import com.openseedbox.backend.ITracker;
+import com.openseedbox.code.MessageException;
 import com.openseedbox.code.Util;
+import java.io.UnsupportedEncodingException;
+import java.net.URLEncoder;
 import java.util.ArrayList;
 import java.util.Collections;
-import java.util.Date;
 import java.util.List;
 import org.apache.commons.lang.StringUtils;
+import play.mvc.Http.Request;
 
 public class TransmissionTorrent implements ITorrent {
 
-	public int id;
-	public String name;
-	public double percentDone;
-	public long rateDownload;
-	public long rateUpload;
-	public String errorString;
-	public String hashString;
-	public long totalSize;
-	public long downloadedEver;
-	public long uploadedEver;
-	public int status;
-	public double metadataPercentComplete;
-	public String downloadDir;
-	public List<TransmissionFile> files;
-	public List<Integer> wanted;
-	public List<TransmissionPeer> peers;
-	public TransmissionPeerFrom peersFrom;
-	public List<Integer> priorities;
-	public List<TransmissionTrackerStats> trackerStats;
+	private int id;
+	private String name;
+	private double percentDone;
+	private long rateDownload;
+	private long rateUpload;
+	private String errorString;
+	private String hashString;
+	private long totalSize;
+	private long downloadedEver;
+	private long uploadedEver;
+	private int status;
+	private double metadataPercentComplete;
+	private String downloadDir;
+	private List<TransmissionFile> files;
+	private List<Integer> wanted;
+	private List<TransmissionPeer> peers;
+	private TransmissionPeerFrom peersFrom;
+	private List<Integer> priorities;
+	private List<TransmissionTrackerStats> trackerStats;
 	
 	private void fixFiles() {
 		//set the id and wanted fields on each file
@@ -151,18 +154,21 @@ public class TransmissionTorrent implements ITorrent {
 	}
 
 	public List<IFile> getFiles() {
-		throw new UnsupportedOperationException("Not supported yet.");
+		if (this.files != null) {
+			fixFiles();
+		}
+		return new ArrayList<IFile>(this.files);		
 	}
 
 	public List<IPeer> getPeers() {
-		throw new UnsupportedOperationException("Not supported yet.");
+		return new ArrayList<IPeer>(this.peers);	
 	}
 
 	public List<ITracker> getTrackers() {
-		throw new UnsupportedOperationException("Not supported yet.");
+		return new ArrayList<ITracker>(this.trackerStats);
 	}
 
-	public class TreeNode implements Comparable, IFile {
+	public class TreeNode implements Comparable {
 
 		public String name = "";
 		public TransmissionFile file = null;
@@ -199,7 +205,7 @@ public class TransmissionTorrent implements ITorrent {
 		public boolean isAnyChildIncomplete() {
 			boolean complete = false;
 			for (TreeNode tn : this.children) {
-				if (tn.file != null && !tn.file.isFinishedDownloading()) {
+				if (tn.file != null && !tn.file.isCompleted()) {
 					complete = true; break;
 				}
 				complete = tn.isAnyChildIncomplete();
@@ -224,99 +230,116 @@ public class TransmissionTorrent implements ITorrent {
 			long ts = getTotalSize();
 			return Util.getBestRate(ts);
 		}
-		/*
-		public String getDownloadLink(User u) {
-			Node n = null;//u.getNode();
-			String fname = (file != null) ? file.name : name;
-			String status = (isComplete()) ? "complete" : "incomplete";
-			return null;
-			/*
-			try {
-				return String.format("https://%s/openseedbox-server/download.php?user_name=%s&file_path=%s&status=%s",
-					n.getIpAddress(), URLEncoder.encode(u.getEmailAddress(), "UTF-8"), URLEncoder.encode(fname, "UTF-8"), status);
-			} catch (UnsupportedEncodingException ex) {
-				return "Platform doesnt support UTF-8 encoding??";
-			}
-		}		
-		
-		public String getZipDownloadLink(User u) {
-			return String.format("%s&type=zip", getDownloadLink(u));
-		}*/
-
-		public String getName() {
-			return this.name;
-		}
-
-		public String getFullPath() {
-			return this.file.name;
-		}
-
-		public boolean isWanted() {
-			return this.file.wanted > 0;
-		}
-
-		public long getBytesCompleted() {
-			return this.file.bytesCompleted;
-		}
-
-		public long getFileSizeBytes() {
-			return this.file.length;
-		}
-
-		public int getPriority() {
-			return this.file.priority;
-		}
 		
 	}	
 
-	public class TransmissionFile {
+	public class TransmissionFile implements IFile {
 
-		public int id;
-		public int wanted;
-		public long bytesCompleted;
-		public long length;
-		public int priority;
-		public String name;
-		
-		public Boolean isFinishedDownloading() {
-			return (bytesCompleted == length);
-		}
+		private int id;
+		private int wanted;
+		private long bytesCompleted;
+		private long length;
+		private int priority;
+		private String name;	
+		private String torrentHash;		
 		
 		public String getPercentComplete() {
 			double percent = ((double) bytesCompleted / length) * 100;
 			return String.format("%.2f", percent);
 		}
 		
-		public Boolean isWanted() {
+		public boolean isWanted() {
 			return (wanted == 1);
+		}
+		
+		public String getName() {
+			return this.name;
+		}
+
+		public String getFullPath() {
+			return this.name;
+		}
+
+		public long getBytesCompleted() {
+			return this.bytesCompleted;
+		}
+
+		public long getFileSizeBytes() {
+			return this.length;
+		}
+
+		public int getPriority() {
+			return this.priority;
+		}		
+
+		public boolean isCompleted() {
+			return (bytesCompleted == length);
+		}
+
+		public String getDownloadLink() {
+			if (StringUtils.isEmpty(torrentHash)) {
+				throw new MessageException("You forgot to call setTorrentHash!");
+			}
+			String domain = Request.current().domain;
+			try {
+				return String.format("https://%s/download/%s/%s", domain,
+						  URLEncoder.encode(torrentHash, "UTF-8"), URLEncoder.encode(name, "UTF-8"));
+			} catch (UnsupportedEncodingException ex) {
+				//fuck off java you retarded fuck
+				return "Platform doesnt support UTF-8 encoding??";
+			}
+		}
+		
+		public void setTorrentHash(String hash) {
+			this.torrentHash = hash;
+		}
+
+		public String getId() {
+			return "" + id;
 		}
 	}
 
-	public class TransmissionPeer {
+	public class TransmissionPeer implements IPeer {
 
-		public String address;
-		public String clientName;
-		public boolean clientIsChoked;
-		public boolean clientIsInterested;
-		public String flagStr;
-		public boolean isDownloadingFrom;
-		public boolean isEncrypted;
-		public boolean isIncoming;
-		public boolean isUploadingTo;
-		public boolean isUTP;
-		public boolean peerIsChoked;
-		public boolean peerIsInterested;
-		public int port;
-		public double progress;
-		public long rateToClient;
-		public long rateToPeer;
+		private String address;
+		private String clientName;
+		private boolean clientIsChoked;
+		private boolean clientIsInterested;
+		private String flagStr;
+		private boolean isDownloadingFrom;
+		private boolean isEncrypted;
+		private boolean isIncoming;
+		private boolean isUploadingTo;
+		private boolean isUTP;
+		private boolean peerIsChoked;
+		private boolean peerIsInterested;
+		private int port;
+		private double progress;
+		private long rateToClient;
+		private long rateToPeer;
 		
-		public String getDownloadSpeed() {
-			return Util.getBestRate(this.rateToClient);
+		public String getClientName() {
+			return this.clientName;
 		}
-		
-		public String getUploadSpeed() {
-			return Util.getBestRate(this.rateToPeer);
+
+		public boolean isDownloadingFrom() {
+			return this.isDownloadingFrom;
+		}
+
+		public boolean isUploadingTo() {
+			return this.isUploadingTo;
+		}
+
+		public boolean isEncryptionEnabled() {
+			return this.isEncrypted;
+		}
+
+		public long getDownloadRateBytes() {
+			return this.rateToClient;
+		}
+
+		public long getUploadRateBytes() {
+			return this.rateToPeer;
 		}
 		
 	}
@@ -332,51 +355,48 @@ public class TransmissionTorrent implements ITorrent {
 		public int fromTracker;
 	}
 
-	public class TransmissionTrackerStats {
+	public class TransmissionTrackerStats implements ITracker {
 
-		public String announce;
-		public int downloadCount;
-		public boolean hasAnnounced;
-		public boolean hasScraped;
-		public String host;
-		public int id;
-		public boolean isBackup;
-		public int lastAnnouncePeerCount;
-		public String lastAnnounceResult;
-		public int lastAnnounceStartTime;
-		public boolean lastAnnounceSucceeded;
-		public long lastAnnounceTime;
-		public boolean lastAnnounceTimedOut;
-		public String lastScrapeResult;
-		public long lastScrapeStartTime;
-		public boolean lastScrapeSucceeded;
-		public long lastScrapeTime;
-		public int lastScrapeTimedOut;
-		public int leecherCount;
-		public long nextAnnounceTime;
-		public long nextScrapeTime;
-		public String scrape;
-		public int scrapeState;
-		public int seederCount;
-		public int tier;
+		private String announce;
+		private int downloadCount;
+		private boolean hasAnnounced;
+		private boolean hasScraped;
+		private String host;
+		private int id;
+		private boolean isBackup;
+		private int lastAnnouncePeerCount;
+		private String lastAnnounceResult;
+		private int lastAnnounceStartTime;
+		private boolean lastAnnounceSucceeded;
+		private long lastAnnounceTime;
+		private boolean lastAnnounceTimedOut;
+		private String lastScrapeResult;
+		private long lastScrapeStartTime;
+		private boolean lastScrapeSucceeded;
+		private long lastScrapeTime;
+		private int lastScrapeTimedOut;
+		private int leecherCount;
+		private long nextAnnounceTime;
+		private long nextScrapeTime;
+		private String scrape;
+		private int scrapeState;
+		private int seederCount;
+		private int tier;
 		
-		public String getLastAnnounceTime() {
-			if (lastAnnounceTime <= 0) {
-				return "N/A";
-			}
-			Date time = new Date(Long.parseLong("" + (this.lastAnnounceTime * 1000)));
-			return Util.formatDateTime(time);
+		public int getDownloadCount() {
+			return this.downloadCount;
 		}
 
-		public String getLastScrapeTime() {
-			if (lastScrapeTime <= 0) {
-				return "N/A";
-			}
-			return Util.formatDateTime(new Date(Long.parseLong("" + (this.lastScrapeTime * 1000))));
+		public String getHost() {
+			return this.host;
 		}
-		
-		public String getDownloadCount() {
-			return (this.downloadCount == -1) ? "N/A" : String.valueOf(this.downloadCount);
+
+		public int getLeecherCount() {
+			return this.leecherCount;
+		}
+
+		public int getSeederCount() {
+			return this.seederCount;
 		}
 	}
 }
