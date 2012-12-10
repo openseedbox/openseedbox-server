@@ -1,5 +1,9 @@
 package com.openseedbox.backend.transmission;
 
+import com.openseedbox.backend.IFile;
+import com.openseedbox.backend.IPeer;
+import com.openseedbox.backend.ITorrent;
+import com.openseedbox.backend.ITracker;
 import com.openseedbox.code.Util;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -7,7 +11,7 @@ import java.util.Date;
 import java.util.List;
 import org.apache.commons.lang.StringUtils;
 
-public class TransmissionTorrent {
+public class TransmissionTorrent implements ITorrent {
 
 	public int id;
 	public String name;
@@ -94,7 +98,71 @@ public class TransmissionTorrent {
 		return StringUtils.join(path, "/", 0, level + 1);
 	}
 
-	public class TreeNode implements Comparable {
+	public String getName() {
+		return name;
+	}
+
+	public boolean isRunning() {
+		throw new UnsupportedOperationException("Not supported yet.");
+	}
+
+	public double getMetadataPercentComplete() {
+		return this.metadataPercentComplete;
+	}
+
+	public double getPercentComplete() {
+		return this.percentDone;
+	}
+
+	public long getDownloadSpeedBytes() {
+		return this.rateDownload;
+	}
+
+	public long getUploadSpeedBytes() {
+		return this.rateUpload;
+	}
+
+	public String getTorrentHash() {
+		return this.hashString;
+	}
+
+	public boolean hasErrorOccured() {
+		return !StringUtils.isEmpty(this.errorString);
+	}
+
+	public String getErrorMessage() {
+		return this.errorString;
+	}
+
+	public long getTotalSizeBytes() {
+		return this.totalSize;
+	}
+
+	public long getDownloadedBytes() {
+		return this.downloadedEver;
+	}
+
+	public long getUploadedBytes() {
+		return this.uploadedEver;
+	}
+
+	public TorrentState getStatus() {
+		throw new UnsupportedOperationException("Not supported yet.");
+	}
+
+	public List<IFile> getFiles() {
+		throw new UnsupportedOperationException("Not supported yet.");
+	}
+
+	public List<IPeer> getPeers() {
+		throw new UnsupportedOperationException("Not supported yet.");
+	}
+
+	public List<ITracker> getTrackers() {
+		throw new UnsupportedOperationException("Not supported yet.");
+	}
+
+	public class TreeNode implements Comparable, IFile {
 
 		public String name = "";
 		public TransmissionFile file = null;
@@ -174,6 +242,30 @@ public class TransmissionTorrent {
 		public String getZipDownloadLink(User u) {
 			return String.format("%s&type=zip", getDownloadLink(u));
 		}*/
+
+		public String getName() {
+			return this.name;
+		}
+
+		public String getFullPath() {
+			return this.file.name;
+		}
+
+		public boolean isWanted() {
+			return this.file.wanted > 0;
+		}
+
+		public long getBytesCompleted() {
+			return this.file.bytesCompleted;
+		}
+
+		public long getFileSizeBytes() {
+			return this.file.length;
+		}
+
+		public int getPriority() {
+			return this.file.priority;
+		}
 		
 	}	
 

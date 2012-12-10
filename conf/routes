@@ -1,10 +1,10 @@
-# Routes
-# This file defines all application routes (Higher priority routes first)
-# ~~~~
 
-# Home page
-GET		/stats					Stats.index
-*			/torrents				module:openseedbox
-GET		/							Application.index
+#Routes
+GET		/stats											Stats.index
+GET		/check											Check.index
+GET		/backend/{action}								Backend.{action}
+GET		/torrents/{action}							Torrents.{action}
+GET		/torrents/{hash}/{action}					Torrents.{action}
+GET		/													Application.index
 
 
