@@ -1,0 +1,12 @@
+# Application dependencies
+
+require:
+    - play 1.2.5
+    - openseedbox-common -> openseedbox-common
+    
+repositories:          
+    - openseedbox:
+        type: local
+        artifact: ${application.path}/../[module]
+        contains:
+          - openseedbox-common
