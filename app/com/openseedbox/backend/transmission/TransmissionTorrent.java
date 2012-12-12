@@ -150,6 +150,24 @@ public class TransmissionTorrent implements ITorrent {
 	}
 
 	public TorrentState getStatus() {
+		if (this.hasErrorOccured()) {
+			return TorrentState.ERROR;
+		}
+		if (this.isMetadataDownloading()) {
+			return TorrentState.METADATA_DOWNLOADING;
+		}
+		switch(status) {
+			case 0:		
+				return TorrentState.PAUSED;
+			case 1:
+			case 2:				
+			case 3:				
+			case 4:
+				return TorrentState.DOWNLOADING;
+			case 5:				
+			case 6:
+				return TorrentState.SEEDING;
+		}		
 		throw new UnsupportedOperationException("Not supported yet.");
 	}
 
@@ -166,6 +184,10 @@ public class TransmissionTorrent implements ITorrent {
 
 	public List<ITracker> getTrackers() {
 		return new ArrayList<ITracker>(this.trackerStats);
+	}
+
+	public boolean isMetadataDownloading() {
+		return this.metadataPercentComplete != 1.0;
 	}
 
 	public class TreeNode implements Comparable {
