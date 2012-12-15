@@ -288,6 +288,10 @@ public class Torrents extends Base {
 		public String getId() {
 			return id;
 		}
+
+		public double getPercentComplete() {
+			throw new UnsupportedOperationException("Not supported yet.");
+		}
 		
 	}
 	
