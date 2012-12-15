@@ -69,7 +69,7 @@ public class Torrents extends Base {
 	 */
 	public static void list(boolean recentlyActive) {
 		ITorrentBackend backend = getBackend();
-		List<ITorrent> torrents = (recentlyActive)
+		List<ITorrent> torrents = (!recentlyActive)
 				  ? backend.listTorrents()
 				  : backend.listRecentlyActiveTorrents();
 		result(torrents);

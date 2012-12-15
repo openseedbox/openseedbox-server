@@ -1,5 +1,6 @@
 
 #Routes
+GET		/public/											staticDir:public
 GET		/status											Status.index
 GET		/check											Check.index
 GET		/backend/{action}								Backend.{action}

@@ -277,11 +277,11 @@ public class TransmissionBackend implements ITorrentBackend {
 	
 	private List<ITorrent> getTorrentInfo(List<String> hashes, boolean normal, boolean files, boolean peers, boolean trackers) {
 		List<String> fields = new ArrayList<String>();
+		fields.add("hashString"); //always need hashString or everything breaks
 		if (normal) {
 			fields.addAll(Arrays.asList(new String[] {
 				"id", "name", "percentDone", "rateDownload", "rateUpload", "errorString",
-				"hashString", "totalSize", "downloadedEver", "uploadedEver", "status",
-				"metadataPercentComplete"
+				"totalSize", "downloadedEver", "uploadedEver", "status", "metadataPercentComplete"
 			}));
 		}
 		if (files) {
@@ -297,11 +297,8 @@ public class TransmissionBackend implements ITorrentBackend {
 		if (trackers) {
 			fields.add("trackerStats");
 		}				 	
-		RpcRequest req = new RpcRequest("torrent-get");
+		RpcRequest req = (hashes != null) ? new RpcRequest("torrent-get", hashes) : new RpcRequest("torrent-get");
 		req.addArgument("fields", fields);
-		if (hashes != null) {
-			req.addArgument("ids", getTorrentIds(hashes));			
-		}
 		RpcResponse r = req.getResponse();
 		JsonArray torrents = r.getArguments().getAsJsonArray("torrents");
 		Logger.info("Response: %s", torrents.toString());

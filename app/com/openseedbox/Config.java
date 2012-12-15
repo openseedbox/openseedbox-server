@@ -17,4 +17,12 @@ public class Config {
 		return new File(Config.getBackendBasePath(), "complete").getAbsolutePath();
 	}
 	
+	public static String getBackendDownloadScheme() {
+		return Play.configuration.getProperty("backend.download.scheme", "http");
+	}
+	
+	public static String getBackendDownloadPort() {
+		return Play.configuration.getProperty("backend.download.port", "");
+	}
+	
 }

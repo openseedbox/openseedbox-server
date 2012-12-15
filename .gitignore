@@ -7,3 +7,4 @@ lib/
 precompiled/
 server.pid
 build.xml
+test-result/

@@ -1,9 +1,11 @@
 package com.openseedbox.backend.transmission;
 
+import com.openseedbox.Config;
 import com.openseedbox.backend.IFile;
 import com.openseedbox.backend.IPeer;
 import com.openseedbox.backend.ITorrent;
 import com.openseedbox.backend.ITracker;
+import com.openseedbox.backend.TorrentState;
 import com.openseedbox.code.MessageException;
 import com.openseedbox.code.Util;
 import java.io.UnsupportedEncodingException;
@@ -12,6 +14,7 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import org.apache.commons.lang.StringUtils;
+import org.h2.store.fs.FileUtils;
 import play.mvc.Http.Request;
 
 public class TransmissionTorrent implements ITorrent {
@@ -46,6 +49,7 @@ public class TransmissionTorrent implements ITorrent {
 			f.id = x;
 			f.wanted = this.wanted.get(x); 
 			f.priority = priorities.get(x);
+			f.setTorrentHash(this.hashString);
 			newList.add(f);
 		}
 		this.files = newList;
@@ -106,7 +110,8 @@ public class TransmissionTorrent implements ITorrent {
 	}
 
 	public boolean isRunning() {
-		throw new UnsupportedOperationException("Not supported yet.");
+		return ((this.getStatus() != TorrentState.ERROR)
+				  && (this.getStatus() != TorrentState.PAUSED));
 	}
 
 	public double getMetadataPercentComplete() {
@@ -174,20 +179,39 @@ public class TransmissionTorrent implements ITorrent {
 	public List<IFile> getFiles() {
 		if (this.files != null) {
 			fixFiles();
+			return new ArrayList<IFile>(this.files);		
 		}
-		return new ArrayList<IFile>(this.files);		
+		return null;
 	}
 
 	public List<IPeer> getPeers() {
-		return new ArrayList<IPeer>(this.peers);	
+		if (this.peers != null) {
+			return new ArrayList<IPeer>(this.peers);	
+		}
+		return null;
 	}
 
 	public List<ITracker> getTrackers() {
-		return new ArrayList<ITracker>(this.trackerStats);
+		if (this.trackerStats != null) {
+			return new ArrayList<ITracker>(this.trackerStats);
+		}
+		return null;
 	}
 
 	public boolean isMetadataDownloading() {
 		return this.metadataPercentComplete != 1.0;
+	}
+
+	public boolean isSeeding() {
+		return getStatus() == TorrentState.SEEDING;
+	}
+
+	public boolean isDownloading() {
+		return getStatus() == TorrentState.DOWNLOADING;
+	}
+
+	public boolean isPaused() {
+		return getStatus() == TorrentState.PAUSED;
 	}
 
 	public class TreeNode implements Comparable {
@@ -275,7 +299,7 @@ public class TransmissionTorrent implements ITorrent {
 		}
 		
 		public String getName() {
-			return this.name;
+			return FileUtils.getName(this.name);			
 		}
 
 		public String getFullPath() {
@@ -304,7 +328,7 @@ public class TransmissionTorrent implements ITorrent {
 			}
 			String domain = Request.current().domain;
 			try {
-				return String.format("https://%s/download/%s/%s", domain,
+				return String.format("%s://%s/download/%s/%s", Config.getBackendDownloadScheme(), domain,
 						  URLEncoder.encode(torrentHash, "UTF-8"), URLEncoder.encode(name, "UTF-8"));
 			} catch (UnsupportedEncodingException ex) {
 				//fuck off java you retarded fuck
@@ -419,6 +443,10 @@ public class TransmissionTorrent implements ITorrent {
 
 		public int getSeederCount() {
 			return this.seederCount;
+		}
+
+		public String getAnnounceUrl() {
+			return this.announce;
 		}
 	}
 }
