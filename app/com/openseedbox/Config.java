@@ -2,6 +2,7 @@ package com.openseedbox;
 
 import java.io.File;
 import play.Play;
+import play.mvc.Http.Request;
 
 public class Config {
 	
@@ -23,6 +24,25 @@ public class Config {
 	
 	public static String getBackendDownloadPort() {
 		return Play.configuration.getProperty("backend.download.port", "");
+	}
+	
+	public static boolean isXSendfileEnabled() {
+		String enabled = Play.configuration.getProperty("backend.download.xsendfile", "false");
+		return Boolean.parseBoolean(enabled);
+	}
+	
+	public static String getXSendfileHeader() {
+		return Play.configuration.getProperty("backend.download.xsendfile.header", "X-Sendfile");
+	}
+	
+	public static String getXSendfilePath() {
+		return Play.configuration.getProperty("backend.download.xsendfile.path", "/protected");
+	}
+	
+	public static String getServerBase() {
+		String domain = Request.current().domain;
+		String port = Request.current().port.toString();
+		return String.format("%s://%s:%s", Config.getBackendDownloadScheme(), domain, port);
 	}
 	
 }

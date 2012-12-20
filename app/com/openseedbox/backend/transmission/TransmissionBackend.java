@@ -10,13 +10,22 @@ import com.openseedbox.backend.ITorrentBackend;
 import com.openseedbox.backend.ITracker;
 import com.openseedbox.code.MessageException;
 import com.openseedbox.code.Util;
+import com.turn.ttorrent.bcodec.BDecoder;
+import com.turn.ttorrent.bcodec.BEValue;
+import com.turn.ttorrent.bcodec.BEncoder;
+import java.io.ByteArrayInputStream;
+import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.io.IOException;
+import java.io.InputStream;
 import java.util.*;
 import org.apache.commons.codec.binary.Base64;
+import org.apache.commons.codec.digest.DigestUtils;
 import org.apache.commons.io.FileUtils;
+import org.apache.commons.io.IOUtils;
 import org.apache.commons.lang.StringUtils;
 import play.Logger;
+import play.Play;
 import play.libs.WS;
 import play.libs.WS.HttpResponse;
 
@@ -26,8 +35,8 @@ public class TransmissionBackend implements ITorrentBackend {
 		if (!this.isRunning()) {
 			String command = String.format(
 				"transmission-daemon --pid-file %s --rpc-bind-address 127.0.0.1 --download-dir %s " +
-				"--no-incomplete-dir --no-auth --dht --lpd --utp --no-global-seedratio",
-				getDaemonPidFilePath(), Config.getTorrentsCompletePath());
+				"--no-incomplete-dir --no-auth --dht --lpd --utp --no-global-seedratio --port %s",
+				getDaemonPidFilePath(), Config.getTorrentsCompletePath(), getTransmissionPort());
 			String output = Util.executeCommand(command);
 			if (!StringUtils.isEmpty(output.trim())) {
 				Logger.info("Oddities starting transmission: %s", output);
@@ -100,7 +109,7 @@ public class TransmissionBackend implements ITorrentBackend {
 	
 	public void removeTorrent(List<String> hashes) {
 		RpcRequest r = new RpcRequest("torrent-remove", hashes);
-		r.addArgument("delete-local-data", false);
+		r.addArgument("delete-local-data", true);
 		r.getResponse().successOrExcept();		
 	}
 	
@@ -248,32 +257,72 @@ public class TransmissionBackend implements ITorrentBackend {
 		rpc.getResponse().successOrExcept();		
 	}
 	
-	private ITorrent addTorrent(String urlOrMagnet, String base64Contents, Boolean paused) {
+	private ITorrent addTorrent(String urlOrMagnet, String base64Contents, boolean paused) {
 		RpcRequest req = new RpcRequest("torrent-add");
+		String torrentHash = null;
+		if (!StringUtils.isEmpty(urlOrMagnet)) {
+			if (!urlOrMagnet.startsWith("magnet:")) {
+				//make sure file is only downloaded once (not twice, ie once by us and once by transmission)
+				//this is to avoid things like using 2 freeleech tokens in eg what.cd
+				try {
+					base64Contents = Base64.encodeBase64String(
+							  IOUtils.toByteArray(WS.url(urlOrMagnet).get().getStream()));					
+				} catch (Exception ex) {
+					throw new MessageException("Unable to read file at url, are you sure it's valid?");
+				}
+			} else {
+				req.addArgument("filename", urlOrMagnet);
+				torrentHash = getHashFromMagnet(urlOrMagnet);
+			}
+		}
 		if (base64Contents != null) {
 			req.addArgument("metainfo", base64Contents);
-		} else {
-			req.addArgument("filename", urlOrMagnet);
+			torrentHash = getHashFromBase64(base64Contents);
 		}
-		req.addArgument("paused", paused);
+		if (torrentHash == null) {
+			throw new MessageException("Invalid file! Could not determine info_hash.");
+		}
+		req.addArgument("paused", paused);		
+		req.addArgument("download-dir", new File(Config.getTorrentsCompletePath(), torrentHash).getAbsolutePath());
 		RpcResponse res = req.getResponse();
 		if (res.success()) {
-			//move torrent to new location now we have the hash
-			ITorrent it = new Gson().fromJson(res.getArguments().get("torrent-added"), TransmissionTorrent.class);
-			req = new RpcRequest("torrent-set-location");
-			String location = new File(Config.getTorrentsCompletePath(), it.getTorrentHash()).getAbsolutePath();
-			req.addArgument("location",  location);
-			req.addArgument("move", true);
-			res = req.getResponse();
-			if (res.success()) {
-				startTorrent(it.getTorrentHash());
-				return it;
-			}
-			throw new MessageException("Unable to move torrent to proper location: " + res.getResultMessage());
+			//DONT USE Util.getGson() HERE! What happens is the JSON that transmission returns doesnt match up with
+			//the @SerializedAccessorName's on ITorrent (which TransmissionTorrent) implements so some properties
+			//(notably, the hashString) dont get passed through
+			return new Gson().fromJson(res.getArguments().get("torrent-added"), TransmissionTorrent.class);						
 		} else {
 			throw new MessageException("Unable to add torrent: " + res.getResultMessage());
 		}
 	}	
+	
+	private String getHashFromBase64(String b64) {
+		byte[] data = Base64.decodeBase64(b64);
+		ByteArrayInputStream bais = new ByteArrayInputStream(data);
+		return getHashFromInputStream(bais);
+	}
+	
+	private String getHashFromMagnet(String magnet) {		
+		Map<String, String> params = Util.getUrlParameters(magnet.replace("magnet:", ""));
+		if (params.containsKey("xt")) {
+			return params.get("xt").replace("urn:btih:", "");
+		}
+		throw new MessageException("Unable to get torrent hash from magnet link, are you sure its valid?");		
+	}
+	
+	private String getHashFromInputStream(InputStream is) {
+		try {
+			Map<String, BEValue> map = BDecoder.bdecode(is).getMap();	
+			if (map.containsKey("info")) {
+				BEValue info = map.get("info");
+				ByteArrayOutputStream baos = new ByteArrayOutputStream();
+				BEncoder.bencode(info, baos);
+				return DigestUtils.shaHex(baos.toByteArray());
+			}			
+		} catch (IOException ex) {
+			//fuck off java
+		}
+		throw new MessageException("Unable to obtain torrent info_hash! Is this a valid torrent file or magnet link?");
+	}
 	
 	private List<ITorrent> getTorrentInfo(List<String> hashes, boolean normal, boolean files, boolean peers, boolean trackers) {
 		List<String> fields = new ArrayList<String>();
@@ -301,7 +350,7 @@ public class TransmissionBackend implements ITorrentBackend {
 		req.addArgument("fields", fields);
 		RpcResponse r = req.getResponse();
 		JsonArray torrents = r.getArguments().getAsJsonArray("torrents");
-		Logger.info("Response: %s", torrents.toString());
+		//Logger.info("Response: %s", torrents.toString());
 		List<ITorrent> ret = new ArrayList<ITorrent>();
 		Gson g = new Gson();
 		for (JsonElement torrent : torrents) {
@@ -327,8 +376,12 @@ public class TransmissionBackend implements ITorrentBackend {
 	}	
 
 	private String getTransmissionUrl() throws MessageException {
-		return "http://127.0.0.1:9091/transmission/rpc";
+		return String.format("http://127.0.0.1:%s/transmission/rpc", getTransmissionPort());
 	}	
+	
+	private String getTransmissionPort() {
+		return Play.configuration.getProperty("backend.transmission.port", "9091");
+	}
 	
 	private String getDaemonPidFilePath() {
 		return new File(Config.getBackendBasePath(), "daemon.pid").getAbsolutePath();

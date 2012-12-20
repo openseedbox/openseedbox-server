@@ -1,11 +1,13 @@
 package com.openseedbox.backend.transmission;
 
+import com.openseedbox.Config;
 import com.openseedbox.backend.IFile;
 import com.openseedbox.backend.IPeer;
 import com.openseedbox.backend.ITorrent;
 import com.openseedbox.backend.ITracker;
 import com.openseedbox.backend.TorrentState;
 import com.openseedbox.backend.transmission.TransmissionPeer.TransmissionPeerFrom;
+import com.openseedbox.code.Util;
 import java.util.ArrayList;
 import java.util.List;
 import org.apache.commons.lang.StringUtils;
@@ -163,6 +165,10 @@ public class TransmissionTorrent implements ITorrent {
 
 	public boolean isPaused() {
 		return getStatus() == TorrentState.PAUSED;
+	}
+
+	public String getZipDownloadLink() {
+		return String.format("/download/%s?name=%s&type=zip", getTorrentHash(), Util.URLEncode(getName()));
 	}
 	
 }

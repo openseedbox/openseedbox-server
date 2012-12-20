@@ -7,6 +7,7 @@ GET		/backend/{action}								Backend.{action}
 POST		/torrents/add									Torrents.add
 GET		/torrents/{action}							Torrents.{action}
 GET		/torrents/{hash}/{action}					Torrents.{action}
+GET		/download/{hash}								Download.downloadFile
 GET		/													Application.index
 
 

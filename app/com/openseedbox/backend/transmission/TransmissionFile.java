@@ -1,13 +1,11 @@
 package com.openseedbox.backend.transmission;
 
-import com.openseedbox.Config;
 import com.openseedbox.backend.IFile;
 import com.openseedbox.code.MessageException;
-import java.io.UnsupportedEncodingException;
-import java.net.URLEncoder;
+import com.openseedbox.code.Util;
+import java.net.URI;
 import org.apache.commons.lang.StringUtils;
 import org.h2.store.fs.FileUtils;
-import play.mvc.Http;
 
 public class TransmissionFile implements IFile {
 
@@ -66,15 +64,8 @@ public class TransmissionFile implements IFile {
 	public String getDownloadLink() {
 		if (StringUtils.isEmpty(torrentHash)) {
 			throw new MessageException("You forgot to call setTorrentHash!");
-		}
-		String domain = Http.Request.current().domain;
-		try {
-			return String.format("%s://%s/download/%s/%s", Config.getBackendDownloadScheme(), domain,
-					  URLEncoder.encode(torrentHash, "UTF-8"), URLEncoder.encode(name, "UTF-8"));
-		} catch (UnsupportedEncodingException ex) {
-			//fuck off java you retarded fuck
-			return "Platform doesnt support UTF-8 encoding??";
-		}
+		}		
+		return String.format("/download/%s?name=%s", torrentHash, Util.URLEncode(name));
 	}
 
 	public void setTorrentHash(String hash) {
