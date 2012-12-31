@@ -14,8 +14,8 @@ public class Status extends Base {
 	
 	public static void index() throws Exception {
 		String uptime = Util.executeCommand("uptime").trim();
-		String free_space = Util.executeCommand("df --block-size=1 | grep /dev/ | awk '{print $4}'");
-		String total_space = Util.executeCommand("df --block-size=1 | grep /dev/ | awk '{print $2}'");
+		String free_space = Util.executeCommand("df --block-size=1 | grep /dev/ | awk '{print $4}' | head -1");
+		String total_space = Util.executeCommand("df --block-size=1 | grep /dev/ | awk '{print $2}' | head -1");
 		String base_dir = Config.getBackendBasePath();
 		boolean base_dir_writable = new File(base_dir).canWrite();
 		

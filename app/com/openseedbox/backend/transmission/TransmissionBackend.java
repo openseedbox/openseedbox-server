@@ -30,25 +30,55 @@ import play.libs.WS;
 import play.libs.WS.HttpResponse;
 
 public class TransmissionBackend implements ITorrentBackend {
+	
+	private void writeConfigFile() {
+		File configFile = new File(Config.getBackendBasePath(), "settings.json");
+		Map<String, Object> conf = Util.convertToMap(new Object[] {
+			"rpc-bind-address", "127.0.0.1",
+			"rpc-authentication-required", false,
+			"rpc-port", Integer.parseInt(getTransmissionPort()),
+			"download-dir", Config.getTorrentsCompletePath(),
+			"incomplete-dir-enabled", false,
+			"download-queue-enabled", false,
+			"lpd-enabled", true,
+			"blocklist-enabled", true,
+			"blocklist-url", Config.getPeerBlocklistUrl()
+		});
+		String contents = new Gson().toJson(conf);
+		try {
+			FileUtils.writeStringToFile(configFile, contents, "UTF-8");
+			if (this.isRunning()) {
+				String pid = FileUtils.readFileToString(new File(getDaemonPidFilePath()));
+				Util.executeCommand("kill -HUP " + pid);
+			}			
+		} catch (IOException ex) {
+			throw new MessageException(ex, "Unable to write transmission config file");
+		}
+	}
 
 	public void start()  {
-		if (!this.isRunning()) {
+		if (!(new File(Config.getBackendBasePath()).canWrite())) {
+			throw new MessageException("Backend base path '" + Config.getBackendBasePath() + "' isnt writable!");
+		}
+		if (!isRunning()) {
+			writeConfigFile();
 			String command = String.format(
-				"transmission-daemon --pid-file %s --rpc-bind-address 127.0.0.1 --download-dir %s " +
-				"--no-incomplete-dir --no-auth --dht --lpd --utp --no-global-seedratio --port %s",
-				getDaemonPidFilePath(), Config.getTorrentsCompletePath(), getTransmissionPort());
+				"transmission-daemon --config-dir %s --pid-file %s 2>&1",
+				Config.getBackendBasePath(), getDaemonPidFilePath());
 			String output = Util.executeCommand(command);
 			if (!StringUtils.isEmpty(output.trim())) {
 				Logger.info("Oddities starting transmission: %s", output);
 			}
+			sleepWhile(false);
 		}
 	}
 
 	public void stop() {
-		if (this.isRunning()) {
+		if (isRunning()) {
 			try {
 				String pid = FileUtils.readFileToString(new File(getDaemonPidFilePath()));
 				Util.executeCommand("kill " + pid);
+				sleepWhile(true);			
 			} catch (IOException ex) {
 				Logger.info("Unable to read PID file: %s", ex);
 			}			
@@ -59,6 +89,32 @@ public class TransmissionBackend implements ITorrentBackend {
 	public void restart() {
 		stop();
 		start();
+	}
+	
+	private void sleepWhile(boolean running) {
+		int count = 0;
+		int limit = 20; //prevent infinite loop
+		try {
+			if (running) {
+				while (isRunning()) {
+					if (count > limit) {
+						throw new RuntimeException("Process didnt start in 10 seconds, exiting to prevent infinite loop.");
+					}
+					Thread.sleep(500);
+					count++;
+				}
+			} else {
+				while (!isRunning()) {
+					if (count > limit) {
+						throw new RuntimeException("Process didnt die in 10 seconds, exiting to prevent infinite loop.");
+					}
+					Thread.sleep(500);
+					count++;
+				}
+			}
+		} catch (InterruptedException ex) {
+			//no state to clean up
+		}
 	}
 	
 	public boolean isRunning() {
@@ -86,7 +142,6 @@ public class TransmissionBackend implements ITorrentBackend {
 	}
 	
 	public ITorrent addTorrent(File f) {
-		String name = f.getName();
 		byte[] torrent;
 		try {
 			torrent = FileUtils.readFileToByteArray(f);
@@ -94,7 +149,7 @@ public class TransmissionBackend implements ITorrentBackend {
 			throw new MessageException("Unable to read torrent file!");
 		}
 		String contents = Base64.encodeBase64String(torrent);
-		return addTorrent(name, contents, false);
+		return addTorrent(null, contents, false);
 	}
 	
 	public ITorrent addTorrent(String urlOrMagnet) {
@@ -266,7 +321,7 @@ public class TransmissionBackend implements ITorrentBackend {
 				//this is to avoid things like using 2 freeleech tokens in eg what.cd
 				try {
 					base64Contents = Base64.encodeBase64String(
-							  IOUtils.toByteArray(WS.url(urlOrMagnet).get().getStream()));					
+							  IOUtils.toByteArray(WS.url(urlOrMagnet.trim()).get().getStream()));					
 				} catch (Exception ex) {
 					throw new MessageException("Unable to read file at url, are you sure it's valid?");
 				}

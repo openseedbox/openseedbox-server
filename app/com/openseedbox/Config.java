@@ -45,4 +45,8 @@ public class Config {
 		return String.format("%s://%s:%s", Config.getBackendDownloadScheme(), domain, port);
 	}
 	
+	public static String getPeerBlocklistUrl() {
+		return Play.configuration.getProperty("backend.blocklist.url");
+	}
+	
 }
