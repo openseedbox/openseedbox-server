@@ -149,11 +149,11 @@ public class TransmissionBackend implements ITorrentBackend {
 			throw new MessageException("Unable to read torrent file!");
 		}
 		String contents = Base64.encodeBase64String(torrent);
-		return addTorrent(null, contents, false);
+		return addTorrent(null, contents);
 	}
 	
 	public ITorrent addTorrent(String urlOrMagnet) {
-		return addTorrent(urlOrMagnet, null, false);
+		return addTorrent(urlOrMagnet, null);
 	}	
 	
 	public void removeTorrent(String hash) {
@@ -312,7 +312,7 @@ public class TransmissionBackend implements ITorrentBackend {
 		rpc.getResponse().successOrExcept();		
 	}
 	
-	private ITorrent addTorrent(String urlOrMagnet, String base64Contents, boolean paused) {
+	private ITorrent addTorrent(String urlOrMagnet, String base64Contents) {
 		RpcRequest req = new RpcRequest("torrent-add");
 		String torrentHash = null;
 		if (!StringUtils.isEmpty(urlOrMagnet)) {
@@ -337,7 +337,7 @@ public class TransmissionBackend implements ITorrentBackend {
 		if (torrentHash == null) {
 			throw new MessageException("Invalid file! Could not determine info_hash.");
 		}
-		req.addArgument("paused", paused);		
+		req.addArgument("paused", false);		
 		req.addArgument("download-dir", new File(Config.getTorrentsCompletePath(), torrentHash).getAbsolutePath());
 		RpcResponse res = req.getResponse();
 		if (res.success()) {

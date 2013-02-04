@@ -2,17 +2,11 @@ package controllers;
 
 import com.openseedbox.Config;
 import com.openseedbox.code.Util;
-import java.io.BufferedInputStream;
-import java.io.ByteArrayOutputStream;
 import java.io.File;
-import java.io.FileInputStream;
 import java.io.IOException;
-import java.util.zip.ZipEntry;
-import java.util.zip.ZipOutputStream;
+import org.apache.commons.io.FileUtils;
 import org.apache.commons.lang.StringUtils;
-import org.hibernate.engine.jdbc.StreamUtils;
-import play.jobs.Job;
-import play.mvc.Http.Response;
+import play.Logger;
 
 public class Download extends BaseController {
 
@@ -40,83 +34,51 @@ public class Download extends BaseController {
 	}
 
 	protected static void downloadFileZip(String hash, String name) {
+		if (!Config.isNgxZipEnabled()) {
+			renderText("Error: Zip files are not enabled.");
+		}
 		if (StringUtils.isEmpty(hash)) {
 			notFound();
 		}
-		File path = new File(Config.getTorrentsCompletePath(), hash);
-		if (!path.exists()) {
+		File baseDirectory = new File(Config.getTorrentsCompletePath(), hash);
+		if (!baseDirectory.exists()) {
 			notFound();
 		}
 		if (name == null) {
 			name = hash;
-		}
-		await(new StreamZipJob(path, name, response).now());
+		}		
+		if (!Config.isNgxZipManifestOnly()) {
+			response.setHeader("X-Archive-Files", "zip");
+			response.setHeader("Content-Disposition", "attachment; filename=\"" + name + ".zip" + "\"");
+		}		
+		response.setHeader("Last-Modified", Util.getLastModifiedHeader(baseDirectory.lastModified())); //this is so nginx mod_zip will resume the zip file
+		String nginxPath = String.format("%s/%s/", Config.getNgxZipPath(), hash);
+		renderText(generateNgxZipFile(baseDirectory, nginxPath, "/", ""));	
 	}
-
-	protected static class StreamZipJob extends Job {
-
-		private File baseDirectory;
-		private String zipFileName;
-		private Response response;
-
-		public StreamZipJob(File baseDirectory, String zipFileName, Response response) {
-			this.baseDirectory = baseDirectory;
-			this.zipFileName = zipFileName;
-			this.response = response;
-		}
-
-		@Override
-		public void doJob() {
+	
+	private static String generateNgxZipFile(File baseDirectory, String nginxPath, String prefix, String all) {		
+		for (File f : baseDirectory.listFiles()) {
+			if (!prefix.endsWith("/")) {
+				prefix += "/";
+			}			
+			if (f.isDirectory()) {
+				all = generateNgxZipFile(f, nginxPath, prefix + f.getName(), all);
+				continue;
+			}					
+			String name = prefix + f.getName();
+			String path = nginxPath + name;
+			String crc32 = "-";
 			try {
-				response.setContentTypeIfNotSet("application/zip");
-				response.setHeader("Content-Disposition", "attachment; filename=\"" + Util.URLDecode(zipFileName) + ".zip\"");
-				ZipOutputStream zip = new ZipOutputStream(new MyOutputStream(response));
-				zip.setLevel(0); //no compression, we just want it as fast as possible						
-				addDirectory(zip, baseDirectory, "/");
-				zip.close();
+				crc32 = Long.toHexString(FileUtils.checksumCRC32(f)).toUpperCase();
 			} catch (IOException ex) {
-				error("Unable to create zip file!");
+				Logger.warn(ex, "Unable to generate CRC32 for file: %s", path);
 			}
+			all = addNgxZipEntry(crc32, path, name, f.length(), all);
 		}
-
-		private static void addDirectory(ZipOutputStream zip, File directory, String prefix) throws IOException {
-			for (File f : directory.listFiles()) {
-				if (f.isDirectory()) {
-					addDirectory(zip, f, prefix + f.getName() + "/");
-					continue;
-				}
-				zip.putNextEntry(new ZipEntry(prefix + f.getName()));
-				StreamUtils.copy(new BufferedInputStream(new FileInputStream(f)), zip);
-				zip.closeEntry();
-			}
-		}
+		return all;
 	}
-
-	protected static class MyOutputStream extends ByteArrayOutputStream {
-
-		private Response r;
-
-		public MyOutputStream(Response r) {
-			super(4096);
-			this.r = r;
-		}
-
-		@Override
-		public synchronized void write(int b) {
-			super.write(b);
-			if (count >= 4096) {
-				flushBuffer();
-			}
-		}
-
-		@Override
-		public void close() throws IOException {
-			flushBuffer(); //get the last few bytes
-		}
-
-		private void flushBuffer() {
-			r.writeChunk(this.toByteArray());
-			reset();
-		}
+	
+	private static String addNgxZipEntry(String crc32, String path, String name, long sizeBytes, String all) {
+		return all + String.format("%s %s %s %s\n", crc32, sizeBytes, Util.URLEncode(path), name);		
 	}
 }

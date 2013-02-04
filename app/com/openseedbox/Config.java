@@ -31,6 +31,20 @@ public class Config {
 		return Boolean.parseBoolean(enabled);
 	}
 	
+	public static boolean isNgxZipEnabled() {
+		String enabled = Play.configuration.getProperty("backend.download.ngxzip", "false");
+		return Boolean.parseBoolean(enabled);
+	}
+	
+	public static boolean isNgxZipManifestOnly() {
+		String enabled = Play.configuration.getProperty("backend.download.ngxzip.manifestonly", "false");
+		return Boolean.parseBoolean(enabled);
+	}
+	
+	public static String getNgxZipPath() {
+		return Play.configuration.getProperty("backend.download.ngxzip.path", "/rdr");		
+	}	
+	
 	public static String getXSendfileHeader() {
 		return Play.configuration.getProperty("backend.download.xsendfile.header", "X-Sendfile");
 	}
