@@ -7,26 +7,32 @@ import java.io.IOException;
 import org.apache.commons.io.FileUtils;
 import org.apache.commons.lang.StringUtils;
 import play.Logger;
+import play.libs.MimeTypes;
 
 public class Download extends BaseController {
 
-	public static void downloadFile(String hash, String name, String type) {
+	public static void downloadFile(String hash, String name, String type, String debug) {
 		if (type != null && type.equals("zip")) {
 			downloadFileZip(hash, name);
 			return;
 		}
 		String location = Config.getTorrentsCompletePath();
 		if (!(new File(location).exists())) {
-			notFound("File doesnt exist, it appears the download link was constructed incorrectly.");
+			notFound(String.format("File %s doesnt exist, it appears the download link was constructed incorrectly.", location));
 		}
 		if (Config.isXSendfileEnabled()) {
 			location = Config.getXSendfilePath();
 		}
 		String filePath = String.format("%s/%s/%s", location, hash, Util.URLDecode(name));
 		if (Config.isXSendfileEnabled()) {
-			String fileName = new File(filePath).getName();
+			if (!StringUtils.isEmpty(debug)) {
+				renderText("Downloading: " + filePath + " (header: " + Config.getXSendfileHeader() + ")");
+			}
+			String fileName = new File(filePath).getName();				
+			response.setHeader("X-Accel-Charset", "utf-8");
 			response.setHeader("Content-Disposition", "attachment; filename=\"" + fileName + "\"");
-			response.setHeader(Config.getXSendfileHeader(), filePath);
+			response.setContentTypeIfNotSet(MimeTypes.getContentType(new File(filePath).getAbsolutePath()));
+			response.setHeader(Config.getXSendfileHeader(), filePath);								
 		} else {
 			File f = new File(filePath);
 			renderBinary(f, Util.URLDecode(f.getName()));

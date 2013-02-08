@@ -57,9 +57,6 @@ public class TransmissionBackend implements ITorrentBackend {
 	}
 
 	public void start()  {
-		if (!(new File(Config.getBackendBasePath()).canWrite())) {
-			throw new MessageException("Backend base path '" + Config.getBackendBasePath() + "' isnt writable!");
-		}
 		if (!isRunning()) {
 			writeConfigFile();
 			String command = String.format(

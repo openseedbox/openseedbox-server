@@ -22,8 +22,8 @@ public class Config {
 		return Play.configuration.getProperty("backend.download.scheme", "http");
 	}
 	
-	public static String getBackendDownloadPort() {
-		return Play.configuration.getProperty("backend.download.port", "");
+	public static String getBackendBaseDevice() {
+		return Play.configuration.getProperty("backend.base.device", "");
 	}
 	
 	public static boolean isXSendfileEnabled() {

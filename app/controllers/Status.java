@@ -5,6 +5,7 @@ import com.openseedbox.backend.ITorrentBackend;
 import com.openseedbox.backend.NodeStatus;
 import com.openseedbox.code.Util;
 import java.io.File;
+import org.apache.commons.lang.StringUtils;
 
 /**
  * Returns server statistics
@@ -14,8 +15,12 @@ public class Status extends Base {
 	
 	public static void index() throws Exception {
 		String uptime = Util.executeCommand("uptime").trim();
-		String free_space = Util.executeCommand("df --block-size=1 | grep /dev/ | awk '{print $4}' | head -1");
-		String total_space = Util.executeCommand("df --block-size=1 | grep /dev/ | awk '{print $2}' | head -1");
+		String baseDevice = Config.getBackendBaseDevice();
+		if (StringUtils.isEmpty(baseDevice)) {
+			baseDevice = "/dev/";
+		}
+		String free_space = Util.executeCommand(String.format("df --block-size=1 | grep %s | awk '{print $4}' | head -1", baseDevice));
+		String total_space = Util.executeCommand(String.format("df --block-size=1 | grep %s | awk '{print $2}' | head -1", baseDevice));
 		String base_dir = Config.getBackendBasePath();
 		boolean base_dir_writable = new File(base_dir).canWrite();
 		
