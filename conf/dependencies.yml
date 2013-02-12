@@ -3,6 +3,8 @@
 require:
     - play 1.2.5
     - openseedbox-common -> openseedbox-common
+    - com.ning -> async-http-client 1.7.10:
+        force: true    
     
 repositories:          
     - openseedbox:
