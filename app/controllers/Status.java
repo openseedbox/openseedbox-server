@@ -14,6 +14,7 @@ import org.apache.commons.lang.StringUtils;
 public class Status extends Base {
 	
 	public static void index() throws Exception {
+		checkDownloadLocations();
 		String uptime = Util.executeCommand("uptime").trim();
 		String baseDevice = Config.getBackendBaseDevice();
 		if (StringUtils.isEmpty(baseDevice)) {
@@ -23,17 +24,9 @@ public class Status extends Base {
 		String total_space = Util.executeCommand(String.format("df --block-size=1 | grep %s | awk '{print $2}' | head -1", baseDevice));
 		String base_dir = Config.getBackendBasePath();
 		boolean base_dir_writable = new File(base_dir).canWrite();
-		
-		Object installed;
-		ITorrentBackend backend = null;
-		try {
-			backend = getBackend();
-			installed = backend.isInstalled();
-		} catch (Exception ex) {
-			installed = ex.getMessage();
-		}		
 				
-
+		ITorrentBackend backend = getBackend();
+		
 		result(new NodeStatus(uptime, Long.parseLong(free_space), Long.parseLong(total_space), base_dir, base_dir_writable, backend));
 	}
 	

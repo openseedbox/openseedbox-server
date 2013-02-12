@@ -3,7 +3,6 @@ package controllers;
 import com.openseedbox.Config;
 import com.openseedbox.backend.ITorrent;
 import com.openseedbox.backend.ITorrentBackend;
-import com.openseedbox.code.MessageException;
 import com.openseedbox.code.Util;
 import java.io.File;
 import java.io.IOException;
@@ -16,14 +15,7 @@ import org.apache.commons.lang.StringUtils;
 public class Backend extends Base {
 
 	public static void start() {
-		String basePath = Config.getBackendBasePath();
-		if (!(new File(basePath).canWrite())) {
-			resultError("Backend base path '" + Config.getBackendBasePath() + "' isnt writable!");
-		}
-		String is_mounted = Util.executeCommand(String.format("cat /proc/mount | grep %s", basePath));
-		if (StringUtils.isEmpty(is_mounted)) {
-			resultError("Backend base path isnt mounted! Encryption probably isnt active!");
-		}		
+		checkDownloadLocations();
 		getBackend().start();
 		result(Util.convertToMap(new Object[] {
 			"started", true
@@ -38,6 +30,7 @@ public class Backend extends Base {
 	}
 	
 	public static void restart() {
+		checkDownloadLocations();
 		getBackend().restart();
 		result(Util.convertToMap(new Object[] {
 			"restarted", true

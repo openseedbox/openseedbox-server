@@ -2,6 +2,9 @@ package controllers;
 
 import com.openseedbox.Config;
 import com.openseedbox.backend.ITorrentBackend;
+import com.openseedbox.code.Util;
+import java.io.File;
+import org.apache.commons.lang.StringUtils;
 import play.Play;
 import play.mvc.Before;
 
@@ -38,4 +41,15 @@ public abstract class Base extends BaseController {
 		Class c = Class.forName(Config.getBackendClassName());
 		return (ITorrentBackend) c.newInstance();			
 	}
+	
+	protected static void checkDownloadLocations() {
+		String basePath = Config.getBackendBasePath();
+		if (!(new File(basePath).canWrite())) {
+			resultError("Backend base path '" + Config.getBackendBasePath() + "' isnt writable!");
+		}
+		String is_mounted = Util.executeCommand(String.format("cat /proc/mounts | grep %s", basePath));
+		if (StringUtils.isEmpty(is_mounted)) {
+			resultError("Backend base path isnt mounted! Encryption probably isnt active!");
+		}		
+	}	
 }

@@ -62,6 +62,7 @@ public class TransmissionBackend implements ITorrentBackend {
 			String command = String.format(
 				"transmission-daemon --config-dir %s --pid-file %s 2>&1",
 				Config.getBackendBasePath(), getDaemonPidFilePath());
+			Logger.info("Starting transmission-daemon via: %s", command);
 			String output = Util.executeCommand(command);
 			if (!StringUtils.isEmpty(output.trim())) {
 				Logger.info("Oddities starting transmission: %s", output);
@@ -73,7 +74,7 @@ public class TransmissionBackend implements ITorrentBackend {
 	public void stop() {
 		if (isRunning()) {
 			try {
-				String pid = FileUtils.readFileToString(new File(getDaemonPidFilePath()));
+				String pid = getDaemonPID(new File(getDaemonPidFilePath()));
 				Util.executeCommand("kill " + pid);
 				sleepWhile(true);			
 			} catch (IOException ex) {
@@ -118,7 +119,7 @@ public class TransmissionBackend implements ITorrentBackend {
 		File pidFile = new File(getDaemonPidFilePath());
 		if (pidFile.exists()) {
 			try {
-				String pid = FileUtils.readFileToString(pidFile);
+				String pid = getDaemonPID(pidFile);
 				return !StringUtils.isEmpty(Util.executeCommand("ps -A | grep " + pid).trim());
 			} catch (IOException ex) {
 				Logger.error("Unable to read daemon.pid file", ex);
@@ -126,6 +127,15 @@ public class TransmissionBackend implements ITorrentBackend {
 			}
 		}
 		return false;
+	}
+	
+	private String getDaemonPID(File pidFile) throws IOException {
+		String pid = FileUtils.readFileToString(pidFile);
+		if (StringUtils.isEmpty(pid)) {
+			//for some reason, sometimes transmission doesnt write its PID file but its still running
+			pid = StringUtils.trim(Util.executeCommand("ps -A | grep transmission | awk '{print $1}'"));
+		}
+		return pid;
 	}
 		
 	public ISessionStatistics getSessionStatistics() throws MessageException {

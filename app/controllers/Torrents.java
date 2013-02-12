@@ -39,10 +39,11 @@ public class Torrents extends Base {
 		} else {
 			resultError("You must specify the 'url' or 'torrent' parameter.");	
 		}		
-		result(Util.convertToMap(new Object[] {
+		Map<String, Object> res = Util.convertToMap(new Object[] {
 			"added", true,
 			"torrent", to
-		}));				
+		});
+		result(res);
 	}
 	
 	/**
