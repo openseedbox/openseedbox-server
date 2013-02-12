@@ -19,7 +19,7 @@ openseedbox_backend_port=9001
 openseedbox_client_port=9000
 openseedbox_backend_path="/media/openseedbox"
 openseedbox_ssl_enabled=True
-openseedbox_client_db_url="jdbc:mysql:sites:sitespassword@localhost/openseedbox"
+openseedbox_client_db_url="jdbc:mysql://localhost/openseedbox?user=sites&password=sitespassword"
 
 @task
 def bootstrap(type="server", server_name="localhost", server_api_key="", configure_nginx=True, encrypt=True):
