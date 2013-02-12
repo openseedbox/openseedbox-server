@@ -170,7 +170,7 @@ Configure Encrypted Folder: %s""" % (type, server_name, server_api_key, configur
 	step += 1	
 	
 	text("%s. Starting play server for %s" % (step, folder))
-	start_play(type)
+	start_play(type, encrypt)
 
 @task
 def update_code(type="server"):
@@ -184,7 +184,7 @@ def update_code(type="server"):
 	"""
 	print(green("Updating code for type: %s" % type))
 	with cd("/src"):
-		pull_or_clone()
+		pull_or_clone(type)
 	print(green("Restarting play for type: %s" % type))
 	start_play(type) #start_play calls stop_play first
 		
@@ -226,13 +226,24 @@ def update_servers(type="server"):
 	start_play(type)
 	
 @task
-def update_configs(type="server", server_name="localhost", server_api_key=""):
+def update_configs(type="server", server_name="localhost", server_api_key="", encrypt=True):
+	encrypt = str2bool(encrypt)
+	text("""
+Updating configs on server.
+
+Type: %s
+Server Name: %s
+Server API Key: %s
+Encrypt: %""")
+	if not confirm("Is this okay?"):
+		abort("Aborting on user request.")
+		
 	text("Stopping play servers and nginx")
 	stop_play(type)
 	sudo("service nginx stop", pty=False)
 	text("Updating play and nginx configs")
 	create_nginx_config(type, server_name)
-	create_play_config(type, server_api_key)
+	create_play_config(type, server_api_key, encrypt)
 	text("Starting play servers and nginx")
 	start_play(type)
 	sudo("service nginx start", pty=False)
@@ -293,7 +304,7 @@ def create_nginx_config(type="server", servername=""):
 	sudo("ln -fs /etc/nginx/sites-available/%s /etc/nginx/sites-enabled/%s" % (folder, folder))
 	sudo("service nginx restart", pty=False)
 
-def create_play_config(type="server", server_api_key=""):
+def create_play_config(type="server", server_api_key="", encrypt=True):
 	folder = get_folder(type)
 	if (type == "server") and not server_api_key:
 		server_api_key = prompt("What is this servers api_key?")
@@ -305,11 +316,12 @@ def create_play_config(type="server", server_api_key=""):
 def get_folder(type):
 	return "openseedbox-server" if (type == "server") else "openseedbox"
 	
-def get_config_params(server_name=""):
+def get_config_params(server_name="", encrypt=True):
 	nginx_port = "443" if openseedbox_ssl_enabled else "80"
 	return { "server_name" : server_name, "backend_port" : openseedbox_backend_port,
 				"backend_path" : openseedbox_backend_path, "nginx_port" : nginx_port,
-				"client_port" : openseedbox_client_port, "client_db_url" : openseedbox_client_db_url } 
+				"client_port" : openseedbox_client_port, "client_db_url" : openseedbox_client_db_url,
+				"encrypted" : str(encrypt).lower() } 
 	
 def text(t):
 	print(yellow(t))

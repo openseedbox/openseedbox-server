@@ -47,9 +47,11 @@ public abstract class Base extends BaseController {
 		if (!(new File(basePath).canWrite())) {
 			resultError("Backend base path '" + Config.getBackendBasePath() + "' isnt writable!");
 		}
-		String is_mounted = Util.executeCommand(String.format("cat /proc/mounts | grep %s", basePath));
-		if (StringUtils.isEmpty(is_mounted)) {
-			resultError("Backend base path isnt mounted! Encryption probably isnt active!");
-		}		
+		if (Config.isBackendBasePathEncrypted()) {
+			String is_mounted = Util.executeCommand(String.format("cat /proc/mounts | grep %s", basePath));
+			if (StringUtils.isEmpty(is_mounted)) {
+				resultError("Backend base path isnt mounted! Encryption probably isnt active!");
+			}		
+		}
 	}	
 }

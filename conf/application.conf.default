@@ -17,6 +17,7 @@ jpda.port=8001
 backend.base.api_key=vm1
 backend.base.path=/media/openseedbox
 backend.base.device=/dev/mapper/openseedbox
+backend.base.path.encrypted=true
 backend.class=com.openseedbox.backend.transmission.TransmissionBackend
 backend.download.scheme=http
 backend.download.xsendfile=true

@@ -13,6 +13,11 @@ public class Config {
 	public static String getBackendBasePath() {
 		return Play.configuration.getProperty("backend.base.path", "/openseedbox");
 	}
+	
+	public static boolean isBackendBasePathEncrypted() {
+		String t = Play.configuration.getProperty("backend.base.path.encrypted", "true");
+		return Boolean.parseBoolean(t);
+	}
 		
 	public static String getTorrentsCompletePath() {
 		return new File(Config.getBackendBasePath(), "complete").getAbsolutePath();

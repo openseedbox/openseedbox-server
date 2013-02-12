@@ -71,6 +71,7 @@ http.address=127.0.0.1
 #Openseedbox Backend Settings
 backend.base.api_key=%(api_key)s
 backend.base.path=%(backend_path)s
+backend.base.path.encrypted=%(encrypted)s
 backend.base.device=%(backend_path)s
 backend.class=com.openseedbox.backend.transmission.TransmissionBackend
 backend.download.scheme=https
