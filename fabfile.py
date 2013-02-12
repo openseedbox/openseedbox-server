@@ -3,7 +3,7 @@ from fabric.colors import yellow, green
 from fabric.contrib.files import exists
 from fabric.contrib.console import confirm
 from StringIO import StringIO
-from configs import nginx_server_config, nginx_client_config, nginx_ssl_config, openseedbox_server_config, openseedbox_client_config
+from configs import nginx_server_config, nginx_client_config, openseedbox_server_config, openseedbox_client_config
 
 packages = "unzip git openjdk-6-jre-headless python-software-properties build-essential libssl-dev libpcre3-dev"
 server_only_packages = "transmission-daemon cryptsetup"
@@ -64,7 +64,11 @@ Configure Encrypted Folder: %s""" % (type, server_name, server_api_key, configur
 	if not confirm("Are these settings all good?"):
 		abort("Aborting to prevent injury.")
 	
-	step = 1
+	step = 1	
+	text("%s. Removing /src for fresh install" % step)
+	sudo("rm -fr /src")
+	step += 1
+		
 	text("%s. Creating /src directory" % step)
 	sudo("mkdir -p /src")
 	sudo("chmod -R 775 /src")
@@ -129,6 +133,7 @@ Configure Encrypted Folder: %s""" % (type, server_name, server_api_key, configur
 		text("%s. Setting permissions on %s" % (step, openseedbox_backend_path))
 		sudo("chmod -R 775 %s" % openseedbox_backend_path)
 		sudo("chown -R %s %s" % (user, openseedbox_backend_path))
+		step += 1
 			
 		text("%s. Removing transmission-daemon from startup" % step)
 		sudo("update-rc.d -f transmission-daemon remove")
@@ -282,7 +287,8 @@ def create_nginx_config(type="server", servername=""):
 	if not servername:
 		servername = prompt("What is this servers servername?")
 	replace = get_config_params(servername)
-	config = nginx_server_config if (type == "server")	else nginx_client_config
+	config = nginx_server_config if type == "server" else nginx_client_config
+	sudo("rm -f /etc/nginx/sites-available/%s" % folder)
 	put(StringIO(config % replace), "/etc/nginx/sites-available/%s" % folder, use_sudo=True)
 	sudo("ln -fs /etc/nginx/sites-available/%s /etc/nginx/sites-enabled/%s" % (folder, folder))
 	sudo("service nginx restart", pty=False)
