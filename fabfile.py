@@ -106,28 +106,33 @@ Configure Encrypted Folder: %s""" % (type, server_name, server_api_key, configur
 		pull_or_clone(type)
 		step += 1
 	
-	if type == "server" and encrypt:	
-		if not exists("~/data.img"):
-			text("%s. Creating encrypted partion" % step)
-			size = prompt("How many GB do you want the partition to be?")
-			run("fallocate -l %sG ~/data.img" % size)
-			sudo("cryptsetup --verify-passphrase --hash=sha256 luksFormat ~/data.img")
-			sudo("cryptsetup luksOpen ~/data.img openseedbox")
-			sudo("mkfs.ext4 /dev/mapper/openseedbox")
-			sudo("mkdir /media/openseedbox")
-			sudo("mount /dev/mapper/openseedbox /media/openseedbox")
-			step += 1
-	
-		text("%s. Mounting encrypted partition and setting permissions" % step)	
-		mount_encrypted_partition()		
-		sudo("chmod -R 775 /media/openseedbox")
-		sudo("chown -R %s /media/openseedbox" % user)
+	if type == "server":
+		text("%s. Creating mountpoint %s" % (step, openseedbox_backend_path));		
+		sudo("mkdir -p %s" % openseedbox_backend_path)
 		step += 1
 	
-	if type == "server":
+		if encrypt:
+			if not exists("~/data.img"):
+				text("%s. Creating encrypted partion" % step)
+				size = prompt("How many GB do you want the partition to be?")
+				run("fallocate -l %sG ~/data.img" % size)
+				sudo("cryptsetup --verify-passphrase --hash=sha256 luksFormat ~/data.img")
+				sudo("cryptsetup luksOpen ~/data.img openseedbox")
+				sudo("mkfs.ext4 /dev/mapper/openseedbox")
+				sudo("mount /dev/mapper/openseedbox %s" % openseedbox_backend_path)
+				step += 1
+	
+			text("%s. Mounting encrypted partition" % step)	
+			mount_encrypted_partition()
+			step += 1
+		
+		text("%s. Setting permissions on %s" % (step, openseedbox_backend_path))
+		sudo("chmod -R 775 %s" % openseedbox_backend_path)
+		sudo("chown -R %s %s" % (user, openseedbox_backend_path))
+			
 		text("%s. Removing transmission-daemon from startup" % step)
 		sudo("update-rc.d -f transmission-daemon remove")
-		step += 1
+		step += 1	
 	
 	if configure_nginx:
 		text("%s. Downloading and compiling custom nginx" % step) #note: we installed nginx via apt-get before because we wanted to get the init.d scripts
@@ -152,7 +157,7 @@ Configure Encrypted Folder: %s""" % (type, server_name, server_api_key, configur
 		step += 1
 			
 		text("%s. Creating nginx config for %s" % (step, folder))
-		create_nginx_config(type, server_name)
+		create_nginx_config(type, server_name) #note: this restarts nginx
 		step += 1
 	
 	text("%s. Creating play config for %s" % (step, folder))
@@ -269,7 +274,7 @@ def pull_or_clone(type="server"):
 def mount_encrypted_partition():
 	if not exists("/dev/mapper/openseedbox"):
 		sudo("cryptsetup luksOpen ~/data.img openseedbox")
-		sudo("mount /dev/mapper/openseedbox /media/openseedbox")
+		sudo("mount /dev/mapper/openseedbox %s" % openseedbox_backend_path)
 
 def create_nginx_config(type="server", servername=""):
 	folder = get_folder(type)
@@ -295,9 +300,8 @@ def get_folder(type):
 	return "openseedbox-server" if (type == "server") else "openseedbox"
 	
 def get_config_params(server_name=""):
-	ssl = nginx_ssl_config if openseedbox_ssl_enabled else ""
 	nginx_port = "443" if openseedbox_ssl_enabled else "80"
-	return { "ssl" : ssl, "server_name" : server_name, "backend_port" : openseedbox_backend_port,
+	return { "server_name" : server_name, "backend_port" : openseedbox_backend_port,
 				"backend_path" : openseedbox_backend_path, "nginx_port" : nginx_port,
 				"client_port" : openseedbox_client_port, "client_db_url" : openseedbox_client_db_url } 
 	

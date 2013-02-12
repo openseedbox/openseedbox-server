@@ -4,7 +4,9 @@ server {
 	listen %(nginx_port)s;
 	server_name %(server_name)s;
 
-	%(ssl)s
+	ssl on;
+	ssl_certificate /src/openseedbox-server/conf/host.cert;
+	ssl_certificate_key /src/openseedbox-server/conf/host.key;
 
 	merge_slashes off;
 	proxy_method GET;
@@ -34,7 +36,9 @@ server {
 	listen 443;
 	server_name %(server_name)s;
 	
-	%(ssl)s
+	ssl on;
+	ssl_certificate /src/openseedbox/conf/host.cert;
+	ssl_certificate_key /src/openseedbox/conf/host.key;
 
 	location / {
 		proxy_set_header Host $http_host:$http_port;
@@ -50,13 +54,6 @@ server {
 		more_clear_headers "Set-Cookie" "X-Archive-Files";
 	}
 }
-"""
-
-#Nginx config for generic ssl section
-nginx_ssl_config = """
-	ssl on;
-	ssl_certificate /src/openseedbox/conf/host.cert;
-	ssl_certificate_key /src/openseedbox/conf/host.key;
 """
 
 #Play! config for openseedbox-server
