@@ -173,7 +173,7 @@ Configure Encrypted Folder: %s""" % (type, server_name, server_api_key, configur
 	start_play(type, encrypt)
 
 @task
-def update_code(type="server"):
+def update_code(type="server", encrypt=True):
 	"""
 	Updates the OpenSeedbox code and restarts the Play! services
 	
@@ -181,12 +181,16 @@ def update_code(type="server"):
 		type:
 		Either "client" or "server" (defaults to "server"). This sets what
 		git repositories to update.
+		
+		encrypt:
+		Whether or not to make sure encrypted partition is mounted. Defaults to True
 	"""
+	encrypt = str2bool(encrypt)
 	print(green("Updating code for type: %s" % type))
 	with cd("/src"):
 		pull_or_clone(type)
 	print(green("Restarting play for type: %s" % type))
-	start_play(type) #start_play calls stop_play first
+	start_play(type, encrypt) #start_play calls stop_play first
 		
 @task
 def start_play(type="server", encrypt=True):
@@ -227,6 +231,27 @@ def update_servers(type="server"):
 	
 @task
 def update_configs(type="server", server_name="localhost", server_api_key="", encrypt=True):
+	"""
+	Updates the Play! and NGINX configs based on the supplied parameters
+	Also restarts the Play! and NGINX services
+
+	Args:
+		type:
+		Either "client" or "server" (defaults to "server"). This sets what
+		Play! services to restart.
+	
+		server_name:
+		defaults to "localhost". This is what is put in the webserver
+		config file.
+	
+		server_api_key:
+		Only applies when type is set to "server". This is written to the Play!
+		config file and is used by the client to communicate with this server.
+
+		encrypt:
+		Only applies when type == "server". Defaults to True. If True, the
+		encrypted partition will be remounted if it is not mounted.
+	"""
 	encrypt = str2bool(encrypt)
 	text("""
 Updating configs on server.
@@ -234,7 +259,7 @@ Updating configs on server.
 Type: %s
 Server Name: %s
 Server API Key: %s
-Encrypt: %""")
+Encrypt: %s""" % (type, server_name, server_api_key, encrypt))
 	if not confirm("Is this okay?"):
 		abort("Aborting on user request.")
 		
@@ -245,7 +270,7 @@ Encrypt: %""")
 	create_nginx_config(type, server_name)
 	create_play_config(type, server_api_key, encrypt)
 	text("Starting play servers and nginx")
-	start_play(type)
+	start_play(type, encrypt)
 	sudo("service nginx start", pty=False)
 	
 def stop_play(type="server"):
@@ -308,7 +333,7 @@ def create_play_config(type="server", server_api_key="", encrypt=True):
 	folder = get_folder(type)
 	if (type == "server") and not server_api_key:
 		server_api_key = prompt("What is this servers api_key?")
-	replace = get_config_params()
+	replace = get_config_params(encrypt=encrypt)
 	replace["api_key"] = server_api_key
 	config = openseedbox_server_config if (type == "server")	else openseedbox_client_config
 	put(StringIO(config % replace), "/src/%s/conf/application.conf" % folder)

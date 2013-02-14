@@ -21,7 +21,13 @@ public class Status extends Base {
 			baseDevice = "/dev/";
 		}
 		String free_space = Util.executeCommand(String.format("df --block-size=1 | grep %s | awk '{print $4}' | head -1", baseDevice));
+		if (StringUtils.isEmpty(free_space)) {
+			free_space = "-1";
+		}		
 		String total_space = Util.executeCommand(String.format("df --block-size=1 | grep %s | awk '{print $2}' | head -1", baseDevice));
+		if (StringUtils.isEmpty(total_space)) {
+			total_space = "-1";
+		}
 		String base_dir = Config.getBackendBasePath();
 		boolean base_dir_writable = new File(base_dir).canWrite();
 				

@@ -23,16 +23,17 @@ public class Download extends BaseController {
 		if (Config.isXSendfileEnabled()) {
 			location = Config.getXSendfilePath();
 		}
-		String filePath = String.format("%s/%s/%s", location, hash, Util.URLDecode(name));
+		String filePath = String.format("%s/%s/%s", location, hash, name);		
 		if (Config.isXSendfileEnabled()) {
-			if (!StringUtils.isEmpty(debug)) {
-				renderText("Downloading: " + filePath + " (header: " + Config.getXSendfileHeader() + ")");
-			}
 			String fileName = new File(filePath).getName();				
-			response.setHeader("X-Accel-Charset", "utf-8");
-			response.setHeader("Content-Disposition", "attachment; filename=\"" + fileName + "\"");
-			response.setContentTypeIfNotSet(MimeTypes.getContentType(new File(filePath).getAbsolutePath()));
-			response.setHeader(Config.getXSendfileHeader(), filePath);								
+			response.setHeader("X-Accel-Charset", "utf-8");			
+			if (StringUtils.isEmpty(debug)) {
+				response.setHeader("Content-Disposition", "attachment; filename=\"" + fileName + "\"");
+				response.setContentTypeIfNotSet(MimeTypes.getContentType(new File(filePath).getAbsolutePath()));
+				response.setHeader(Config.getXSendfileHeader(), filePath);
+			} else {
+				renderText("FilePath: " + filePath);
+			}
 		} else {
 			File f = new File(filePath);
 			renderBinary(f, Util.URLDecode(f.getName()));
