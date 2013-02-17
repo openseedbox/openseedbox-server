@@ -68,6 +68,8 @@ date.format=yyyy-MM-dd
 http.port=%(backend_port)s
 http.address=127.0.0.1
 
+db=mem
+
 #Openseedbox Backend Settings
 backend.base.api_key=%(api_key)s
 backend.base.path=%(backend_path)s

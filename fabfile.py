@@ -188,7 +188,7 @@ def update_code(type="server", encrypt=True):
 	encrypt = str2bool(encrypt)
 	print(green("Updating code for type: %s" % type))
 	with cd("/src"):
-		pull_or_clone(type)
+		pull_or_clone(type, True)
 	print(green("Restarting play for type: %s" % type))
 	start_play(type, encrypt) #start_play calls stop_play first
 		
@@ -206,6 +206,7 @@ def start_play(type="server", encrypt=True):
 		Only applies when type == "server". Defaults to True. If True, the
 		encrypted partition will be remounted if it is not mounted.
 	"""
+	encrypt = str2bool(encrypt)
 	folder = get_folder(type)
 	stop_play(type)
 	if type == "server" and encrypt:
@@ -224,7 +225,7 @@ def update_servers(type="server"):
 	
 	text("Updating source repositories")
 	with cd("/src"):
-		pull_or_clone()		
+		pull_or_clone(type, True)		
 		
 	text("Restarting play services")
 	start_play(type)
@@ -270,7 +271,7 @@ Encrypt: %s""" % (type, server_name, server_api_key, encrypt))
 	create_nginx_config(type, server_name)
 	create_play_config(type, server_api_key, encrypt)
 	text("Starting play servers and nginx")
-	start_play(type, encrypt)
+	start_play(type, encrypt=encrypt)
 	sudo("service nginx start", pty=False)
 	
 def stop_play(type="server"):
@@ -285,7 +286,7 @@ def stop_play(type="server"):
 				run("kill -9 %s" % pid)	
 				run("rm server.pid")	
 	
-def pull_or_clone(type="server"):
+def pull_or_clone(type="server", delete_first=False):
 	#note: assumes caller is using 'with cd("/src"):'
 	for r in repositories:
 		name = r[0]
@@ -296,19 +297,24 @@ def pull_or_clone(type="server"):
 			continue
 		if type == "client" and name == "openseedbox-server":
 			continue
-			
+		
+		git_clone = "git clone -q %s /src/%s" % (repo, name)
+		
 		if not exists(name):
-			run("git clone -q %s /src/%s" % (repo, name))
+			run(git_clone)
 		else:
-			with cd("/src/%s" % name):
-				#move application.conf elsewhere because otherwise there will be git pull conflicts
-				moved_application_conf=False
-				if exists("conf/application.conf"):
-					run("mv conf/application.conf /tmp/%s.application.conf" % name)
-					moved_application_conf=True
-				run("git pull")
-				if moved_application_conf:
-					run("mv /tmp/%s.application.conf conf/application.conf" % name)
+			with cd("/src"):
+				if exists("%s/conf/application.conf" % name):
+					run("mv %s/conf/application.conf /tmp/%s.application.conf" % (name, name))
+				if delete_first:
+					run("rm -fr %s" % name)
+					run(git_clone)
+				else:
+					with cd("/src/%s" % name):
+						run("git pull")
+				if exists("/tmp/%s.application.conf" % name):
+					run("mv /tmp/%s.application.conf %s/conf/application.conf" % (name, name))
+										
 		with cd("/src/%s" % name):
 			run("play deps --sync")
 				

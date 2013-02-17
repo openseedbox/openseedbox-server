@@ -3,7 +3,6 @@ package com.openseedbox.backend.transmission;
 import com.openseedbox.backend.IFile;
 import com.openseedbox.code.MessageException;
 import com.openseedbox.code.Util;
-import java.net.URI;
 import org.apache.commons.lang.StringUtils;
 import org.h2.store.fs.FileUtils;
 
