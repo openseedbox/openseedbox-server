@@ -1,18 +1,16 @@
 package com.openseedbox.backend.transmission;
 
-import com.openseedbox.Config;
+import com.openseedbox.backend.AbstractTorrent;
 import com.openseedbox.backend.IFile;
 import com.openseedbox.backend.IPeer;
-import com.openseedbox.backend.ITorrent;
 import com.openseedbox.backend.ITracker;
 import com.openseedbox.backend.TorrentState;
 import com.openseedbox.backend.transmission.TransmissionPeer.TransmissionPeerFrom;
 import com.openseedbox.code.Util;
 import java.util.ArrayList;
 import java.util.List;
-import org.apache.commons.lang.StringUtils;
 
-public class TransmissionTorrent implements ITorrent {
+public class TransmissionTorrent extends AbstractTorrent {
 
 	private int id;
 	private String name;
@@ -49,18 +47,9 @@ public class TransmissionTorrent implements ITorrent {
 		}
 		this.files = newList;
 	}
-	
-	public boolean isComplete() {
-		return (this.percentDone == 1.0);
-	}
 
 	public String getName() {
 		return name;
-	}
-
-	public boolean isRunning() {
-		return ((this.getStatus() != TorrentState.ERROR)
-				  && (this.getStatus() != TorrentState.PAUSED));
 	}
 
 	public double getMetadataPercentComplete() {
@@ -81,10 +70,6 @@ public class TransmissionTorrent implements ITorrent {
 
 	public String getTorrentHash() {
 		return this.hashString;
-	}
-
-	public boolean hasErrorOccured() {
-		return !StringUtils.isEmpty(this.errorString);
 	}
 
 	public String getErrorMessage() {
@@ -151,24 +136,8 @@ public class TransmissionTorrent implements ITorrent {
 		return null;
 	}
 
-	public boolean isMetadataDownloading() {
-		return this.metadataPercentComplete != 1.0;
-	}
-
-	public boolean isSeeding() {
-		return getStatus() == TorrentState.SEEDING;
-	}
-
-	public boolean isDownloading() {
-		return getStatus() == TorrentState.DOWNLOADING;
-	}
-
-	public boolean isPaused() {
-		return getStatus() == TorrentState.PAUSED;
-	}
-
 	public String getZipDownloadLink() {
-		return String.format("/download/%s?name=%s&type=zip", getTorrentHash(), Util.URLEncode(getName()));
+		return String.format("/download/zip/%s?name=%s", getTorrentHash(), Util.URLEncode(getName()));
 	}
 	
 }

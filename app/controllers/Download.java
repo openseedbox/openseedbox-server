@@ -2,16 +2,20 @@ package controllers;
 
 import com.openseedbox.Config;
 import com.openseedbox.code.Util;
+import com.openseedbox.jobs.GenerateNginxManifestJob;
 import java.io.File;
 import java.io.IOException;
+import java.util.HashMap;
+import java.util.Map;
 import org.apache.commons.io.FileUtils;
 import org.apache.commons.lang.StringUtils;
-import play.Logger;
 import play.libs.MimeTypes;
+import play.mvc.Router;
+import play.mvc.Router.ActionDefinition;
 
 public class Download extends BaseController {
 
-	public static void downloadFile(String hash, String name, String type, String debug) {
+	public static void downloadFile(String hash, String name, String type, String debug) throws IOException {
 		if (type != null && type.equals("zip")) {
 			downloadFileZip(hash, name);
 			return;
@@ -39,53 +43,90 @@ public class Download extends BaseController {
 			renderBinary(f, Util.URLDecode(f.getName()));
 		}
 	}
+	
+	public static void downloadZip(String hash, String name) throws IOException {
+		if (StringUtils.isEmpty(hash)) {
+			notFound();
+		}
+		File manifest = getNgxManifestForZip(hash);
+		Map<String, Object> args = new HashMap<String, Object>();
+		args.put("hash", hash);
+		args.put("name", name);
+		args.put("type", "zip");
+		ActionDefinition ad = Router.reverse("Download.downloadFile", args);
+		ad.absolute();		
+		if (request.secure) {
+			ad = ad.secure();
+		}
+		String downloadLink = ad.url;
+		if (manifest == null) {
+			File incomplete = getNgxManifestFile(hash, false);
+			if (!incomplete.exists()) {
+				new GenerateNginxManifestJob(hash, incomplete, getBaseDirectory(hash)).now();
+			}
+			downloadLink = null;
+		}
+		result(Util.convertToMap(new Object[] {
+			"percent-complete", Util.formatPercentage(getManifestCreationPercent(hash)),
+			"hash", hash,
+			"name", name,
+			"download-link", downloadLink
+		}));
+	}
 
-	protected static void downloadFileZip(String hash, String name) {
+	protected static void downloadFileZip(String hash, String name) throws IOException {
 		if (!Config.isNgxZipEnabled()) {
 			renderText("Error: Zip files are not enabled.");
 		}
 		if (StringUtils.isEmpty(hash)) {
 			notFound();
 		}
-		File baseDirectory = new File(Config.getTorrentsCompletePath(), hash);
+		File baseDirectory = getBaseDirectory(hash);
 		if (!baseDirectory.exists()) {
 			notFound();
 		}
 		if (name == null) {
 			name = hash;
 		}		
+		File manifest = getNgxManifestForZip(hash);
+		if (manifest == null) {
+			notFound("No manifest found for file, please generate it first.");
+		}
 		if (!Config.isNgxZipManifestOnly()) {
 			response.setHeader("X-Archive-Files", "zip");
 			response.setHeader("Content-Disposition", "attachment; filename=\"" + name + ".zip" + "\"");
 		}		
 		response.setHeader("Last-Modified", Util.getLastModifiedHeader(baseDirectory.lastModified())); //this is so nginx mod_zip will resume the zip file
-		String nginxPath = String.format("%s/%s/", Config.getNgxZipPath(), hash);
-		renderText(generateNgxZipFile(baseDirectory, nginxPath, "/", ""));	
+		renderText(FileUtils.readFileToString(getNgxManifestForZip(hash)));
 	}
 	
-	private static String generateNgxZipFile(File baseDirectory, String nginxPath, String prefix, String all) {		
-		for (File f : baseDirectory.listFiles()) {
-			if (!prefix.endsWith("/")) {
-				prefix += "/";
-			}			
-			if (f.isDirectory()) {
-				all = generateNgxZipFile(f, nginxPath, prefix + f.getName(), all);
-				continue;
-			}					
-			String name = prefix + f.getName();
-			String path = nginxPath + name;
-			String crc32 = "-";
-			try {
-				crc32 = Long.toHexString(FileUtils.checksumCRC32(f)).toUpperCase();
-			} catch (IOException ex) {
-				Logger.warn(ex, "Unable to generate CRC32 for file: %s", path);
-			}
-			all = addNgxZipEntry(crc32, path, name, f.length(), all);
+	private static double getManifestCreationPercent(String torrentHash) throws IOException {
+		if (getNgxManifestForZip(torrentHash) != null) {
+			return 100d;
 		}
-		return all;
+		double filesInTorrent = FileUtils.listFiles(getBaseDirectory(torrentHash), null, true).size();
+		filesInTorrent -= 1; //exclude the manifest file
+		double completedFiles = FileUtils.readLines(getNgxManifestFile(torrentHash, false)).size();
+		if (filesInTorrent <= 0 || completedFiles <= 0) {
+			return 0d;
+		}
+		if (filesInTorrent == completedFiles) {
+			return 100d;
+		}
+		return (completedFiles / filesInTorrent) * 100;		
 	}
 	
-	private static String addNgxZipEntry(String crc32, String path, String name, long sizeBytes, String all) {
-		return all + String.format("%s %s %s %s\n", crc32, sizeBytes, Util.URLEncode(path), name);		
+	private static File getNgxManifestForZip(String torrentHash) {
+		File f = getNgxManifestFile(torrentHash, true);
+		return (f.exists()) ? f : null;		
+	}
+	
+	private static File getNgxManifestFile(String torrentHash, boolean isFinished) {
+		String filename = (isFinished) ? "_ngx_manifest.txt" : "_ngx_manifest.incomplete";
+		return new File(getBaseDirectory(torrentHash), filename);
+	}
+	
+	private static File getBaseDirectory(String torrentHash) {
+		return new File(Config.getTorrentsCompletePath(), torrentHash);
 	}
 }

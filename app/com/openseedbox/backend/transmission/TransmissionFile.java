@@ -1,12 +1,12 @@
 package com.openseedbox.backend.transmission;
 
-import com.openseedbox.backend.IFile;
+import com.openseedbox.backend.AbstractFile;
 import com.openseedbox.code.MessageException;
 import com.openseedbox.code.Util;
 import org.apache.commons.lang.StringUtils;
 import org.h2.store.fs.FileUtils;
 
-public class TransmissionFile implements IFile {
+public class TransmissionFile extends AbstractFile {
 
 	private int id;
 	private int wanted;
@@ -15,10 +15,6 @@ public class TransmissionFile implements IFile {
 	private int priority;
 	private String name;
 	private String torrentHash;
-
-	public double getPercentComplete() {
-		return ((double) bytesCompleted / length);		
-	}
 
 	public void setId(int id) {
 		this.id = id;
@@ -54,10 +50,6 @@ public class TransmissionFile implements IFile {
 
 	public int getPriority() {
 		return this.priority;
-	}
-
-	public boolean isCompleted() {
-		return (bytesCompleted == length);
 	}
 
 	public String getDownloadLink() {

@@ -186,6 +186,8 @@ def update_code(type="server", encrypt=True):
 		Whether or not to make sure encrypted partition is mounted. Defaults to True
 	"""
 	encrypt = str2bool(encrypt)
+	print(green("Stopping play for type: %s" % type))
+	stop_play(type)
 	print(green("Updating code for type: %s" % type))
 	with cd("/src"):
 		pull_or_clone(type, True)

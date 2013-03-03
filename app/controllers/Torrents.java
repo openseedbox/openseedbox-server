@@ -1,5 +1,6 @@
 package controllers;
 
+import com.openseedbox.backend.AbstractFile;
 import com.openseedbox.backend.IFile;
 import com.openseedbox.backend.IPeer;
 import com.openseedbox.backend.ITorrent;
@@ -244,7 +245,7 @@ public class Torrents extends Base {
 		}));			
 	}
 	
-	protected static class IncomingTorrentFile implements IFile {
+	protected static class IncomingTorrentFile extends AbstractFile {
 		
 		private String id;
 		private boolean wanted;
@@ -266,10 +267,6 @@ public class Torrents extends Base {
 			return wanted;
 		}
 
-		public boolean isCompleted() {
-			throw new UnsupportedOperationException("Not supported yet.");
-		}
-
 		public long getBytesCompleted() {
 			throw new UnsupportedOperationException("Not supported yet.");
 		}
@@ -288,12 +285,7 @@ public class Torrents extends Base {
 
 		public String getId() {
 			return id;
-		}
-
-		public double getPercentComplete() {
-			throw new UnsupportedOperationException("Not supported yet.");
-		}
-		
+		}		
 	}
 	
 }

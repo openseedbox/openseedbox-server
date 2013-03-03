@@ -25,7 +25,7 @@ backend.download.xsendfile.path=/protected
 backend.download.xsendfile.header=X-Accel-Redirect
 backend.download.ngxzip=true
 backend.download.ngxzip.path=/protected
-backend.download.ngxzip.manifestonly=false
+backend.download.ngxzip.manifestonly=true
 backend.blocklist.url=http://list.iblocklist.com/?list=bt_level1&fileformat=p2p&archiveformat=gz
 openseedbox.assets.prefix=https://s3.amazonaws.com/cdn.openseedbox.com
 

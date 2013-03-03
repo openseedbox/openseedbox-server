@@ -7,12 +7,17 @@ server {
 	ssl on;
 	ssl_certificate /src/openseedbox-server/conf/host.cert;
 	ssl_certificate_key /src/openseedbox-server/conf/host.key;
+	
+	gzip on;
+	gzip_types "text/plain" "text/xml" "application/json";
+	gzip_comp_level 9;	
 
 	merge_slashes off;
 	proxy_method GET;
 
 	location / {		
 		proxy_set_header Host $http_host;
+		proxy_set_header X-Forwarded-Proto https;
 		proxy_pass http://localhost:%(backend_port)s;
 		more_clear_headers "Set-Cookie" "X-Archive-Files";
 	}
@@ -39,6 +44,10 @@ server {
 	ssl on;
 	ssl_certificate /src/openseedbox/conf/host.cert;
 	ssl_certificate_key /src/openseedbox/conf/host.key;
+	
+	gzip on;
+	gzip_types "text/plain" "text/xml" "application/json";
+	gzip_comp_level 9;	
 
 	location / {
 		proxy_set_header Host $http_host:$http_port;

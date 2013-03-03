@@ -8,7 +8,7 @@ GET		/backend/{action}								Backend.{action}(ext:'json')
 POST		/torrents/add									Torrents.add
 GET		/torrents/{action}							Torrents.{action}
 GET		/torrents/{hash}/{action}					Torrents.{action}
-GET		/download/zipTest								Download.zipTest
+GET		/download/zip/{hash}							Download.downloadZip
 GET		/download/{hash}								Download.downloadFile
 GET		/													Application.index
 
