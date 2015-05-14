@@ -345,7 +345,7 @@ public class TransmissionBackend implements ITorrentBackend {
 			throw new MessageException("Invalid file! Could not determine info_hash.");
 		}
 		req.addArgument("paused", false);		
-		req.addArgument("download-dir", new File(Config.getTorrentsCompletePath(), torrentHash).getAbsolutePath());
+		req.addArgument("download-dir", new File(Config.getTorrentsCompletePath(), torrentHash.toLowerCase()).getAbsolutePath());
 		RpcResponse res = req.getResponse();
 		if (res.success()) {
 			//DONT USE Util.getGson() HERE! What happens is the JSON that transmission returns doesnt match up with
