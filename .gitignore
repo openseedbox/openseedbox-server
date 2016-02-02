@@ -11,3 +11,6 @@ test-result/
 *.pyc
 *.*~
 conf/application.conf
+.project
+.settings
+.classpath
