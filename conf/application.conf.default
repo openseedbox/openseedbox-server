@@ -8,10 +8,6 @@ date.format=yyyy-MM-dd
 #Http settings
 http.port=9001
 jpda.port=8001
-# application.session.cookie=PLAY
-# application.session.maxAge=1h
-# application.session.secure=false
-
 
 #Openseedbox Backend Settings
 backend.base.api_key=vm1
@@ -31,10 +27,4 @@ openseedbox.assets.prefix=https://s3.amazonaws.com/cdn.openseedbox.com
 
 #Transmission backend settings
 backend.transmission.port=1234
-
-# Test settings
-%test.application.mode=dev
-%test.db.url=jdbc:h2:mem:play;MODE=MYSQL;LOCK_MODE=0
-%test.jpa.ddl=create
-%test.mail.smtp=mock
 

@@ -1,5 +1,8 @@
 FROM openseedbox
 
+RUN apt-get install -qq -y transmission-daemon \
+	&& apt-get -y clean
+
 WORKDIR /src/openseedbox-common
 RUN /play/play deps
 
