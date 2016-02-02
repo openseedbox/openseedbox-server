@@ -1,4 +1,4 @@
-FROM openseedbox
+FROM openseedbox/openseedbox
 
 RUN apt-get install -qq -y transmission-daemon \
 	&& apt-get -y clean
