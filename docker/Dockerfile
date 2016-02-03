@@ -1,7 +1,9 @@
 FROM openseedbox/openseedbox
 
-RUN apt-get install -qq -y transmission-daemon \
-	&& apt-get -y clean
+RUN apt-get -qq update \
+	&& apt-get install -qq -y transmission-daemon \
+	&& apt-get -y clean \
+	&& rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/*
 
 WORKDIR /src/openseedbox-common
 RUN /play/play deps
