@@ -351,7 +351,14 @@ public class TransmissionBackend implements ITorrentBackend {
 			//DONT USE Util.getGson() HERE! What happens is the JSON that transmission returns doesnt match up with
 			//the @SerializedAccessorName's on ITorrent (which TransmissionTorrent) implements so some properties
 			//(notably, the hashString) dont get passed through
-			return new Gson().fromJson(res.getArguments().get("torrent-added"), TransmissionTorrent.class);						
+			JsonObject argumentJson = res.getArguments();
+			if (argumentJson.has("torrent-added")) {
+				return new Gson().fromJson(argumentJson.get("torrent-added"), TransmissionTorrent.class);
+			} else if (argumentJson.has("torrent-duplicate")) {
+				return new Gson().fromJson(argumentJson.get("torrent-duplicate"), TransmissionTorrent.class);
+			} else {
+				throw new MessageException("Unknown return argument from backend: " + argumentJson.getAsString());
+			}
 		} else {
 			throw new MessageException("Unable to add torrent: " + res.getResultMessage());
 		}
