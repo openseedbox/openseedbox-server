@@ -20,11 +20,11 @@ public class Status extends Base {
 		if (StringUtils.isEmpty(baseDevice)) {
 			baseDevice = "/dev/";
 		}
-		String free_space = Util.executeCommand(String.format("df --block-size=1 | grep %s | awk '{print $4}' | head -1", baseDevice));
+		String free_space = Util.executeCommand(String.format("df -B 1 | grep %s | awk '{print $4}' | head -1", baseDevice));
 		if (StringUtils.isEmpty(free_space)) {
 			free_space = "-1";
 		}		
-		String total_space = Util.executeCommand(String.format("df --block-size=1 | grep %s | awk '{print $2}' | head -1", baseDevice));
+		String total_space = Util.executeCommand(String.format("df -B 1 | grep %s | awk '{print $2}' | head -1", baseDevice));
 		if (StringUtils.isEmpty(total_space)) {
 			total_space = "-1";
 		}
