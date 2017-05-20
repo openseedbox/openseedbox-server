@@ -5,6 +5,15 @@ application.mode=dev
 application.secret=olHnjc5fXP8EIUAiEdi5EyrnjFbf9mZxxKBqnNdcpJhfGFHP514T4P44gYrBgwGV
 date.format=yyyy-MM-dd
 
+#DB - to prevent Siena trying to connect to Google App Engine
+db=mem
+
+# This plugin disabling workaround is needed for Play! 1.3+ compatibility with Siena
+# I prefer to disable the JPAPlugin, as it was in Play! 1.2.x releases
+# See https://play1-maven-plugin.github.io/play1-maven-plugin/1.0.0-beta8/play-12-to-13-migration.html#Limitations_and_problems_found
+plugins.disable.jpaplugin=play.db.jpa.JPAPlugin
+siena.jpa.disable=false
+
 #Http settings
 http.port=9001
 jpda.port=8001
