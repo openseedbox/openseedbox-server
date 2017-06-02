@@ -14,7 +14,6 @@ RUN git --work-tree=/src/openseedbox-common --git-dir=/src/openseedbox-common/.g
 VOLUME /media/openseedbox
 
 COPY application.conf /src/openseedbox-server/conf/application.conf
-COPY run.sh /run.sh
 COPY nginx.conf /etc/nginx/nginx.conf
 
-EXPOSE 443
+WORKDIR /src/openseedbox-server
