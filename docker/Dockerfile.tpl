@@ -1,4 +1,4 @@
-FROM openseedbox/client
+FROM #{FROM}
 
 RUN apt-get -qq update \
 	&& apt-get install -qq -y transmission-daemon \
