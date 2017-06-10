@@ -15,6 +15,7 @@ backend.base.path=/media/openseedbox
 backend.base.device=/dev/mapper/openseedbox
 backend.base.path.encrypted=true
 backend.class=com.openseedbox.backend.transmission.TransmissionBackend
+backend.autostart=false
 backend.download.scheme=http
 backend.download.xsendfile=true
 backend.download.xsendfile.path=/protected

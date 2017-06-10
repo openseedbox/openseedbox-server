@@ -8,7 +8,12 @@ public class Config {
 	
 	public static String getBackendClassName() {
 		return Play.configuration.getProperty("backend.class", "com.openseedbox.backend.transmission.TransmissionBackend");	
-	}	
+	}
+
+	public static Boolean isBackendAutostart() {
+		String enabled = Play.configuration.getProperty("backend.autostart", "false");
+		return Boolean.parseBoolean(enabled);
+	}
 	
 	public static String getBackendBasePath() {
 		return Play.configuration.getProperty("backend.base.path", "/openseedbox");
