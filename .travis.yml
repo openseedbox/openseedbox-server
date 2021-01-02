@@ -1,20 +1,15 @@
-sudo: required
 services:
   - docker
-  - postgresql
-dist: trusty
+dist: bionic
 language: java
 env:
   global:
-    - DOCKER_CONTEXT=docker
+    - DOCKER_FILE_CONTEXT=docker
 before_install:
   - env|grep TRAVIS
 #aliases
 aliases:
   - &testInstall
-    - jdk_switcher use $JDK
-    - travis_retry sudo apt-get -qq update
-    - travis_retry sudo apt-get -qq install -y --no-install-recommends transmission-daemon;
     - wget -q -O play.zip "https://downloads.typesafe.com/play/$PLAY_VERSION/play-$PLAY_VERSION.zip";
     - unzip -q play.zip;
     - mv play-$PLAY_VERSION play;
@@ -27,33 +22,33 @@ aliases:
     - play/play deps;
     - sudo mkdir -p /media/openseedbox
     - sudo chmod 777 /media/openseedbox
-  - &dockerInstall
-    - travis_retry sudo apt-get -qq update
-    - travis_retry sudo apt-get -qq install -y --no-install-recommends qemu-user-static binfmt-support
-    - sudo update-binfmts --display qemu-arm
-    - sudo update-binfmts --display qemu-aarch64
   - &dockerBuildAndTest
-    - if [ ! -z "$DOCKER_REPO" -a ! -z "$DOCKER_TAG" ]; then export DOCKER_FILE=$DOCKER_CONTEXT/$DOCKER_TAG.Dockerfile ; fi
-    - if [ ! -z "$DOCKER_FILE" -a -f "$DOCKER_FILE" ]; then  set -e; set -o pipefail; docker build -f $DOCKER_FILE -t $DOCKER_REPO:$DOCKER_TAG $DOCKER_CONTEXT; export DOCKER_BUILD_SUCCESS=$? ; else echo "Skipping build of Dockerfile $DOCKER_FILE"; fi;
-    - if [ ! -z "$DOCKER_BUILD_SUCCESS" -a -z "$DOCKER_SKIP_TEST" ]; then  set -e; set -o pipefail; docker run --rm -ti --entrypoint /play/play $DOCKER_REPO:$DOCKER_TAG auto-test /src/openseedbox-server/ ; export DOCKER_TEST_SUCCESS=$?; else echo "Not testing Docker image"; fi;
-  - &dockerPush
     - if [ "$TRAVIS_PULL_REQUEST" == "false" -a "$TRAVIS_BRANCH" == "master" -a ! -z "$DOCKER_USERNAME" -a ! -z "$DOCKER_PASSWORD" ]; then docker login -u=$DOCKER_USERNAME -p=$DOCKER_PASSWORD; export DOCKER_LOGIN_SUCCESS=$?; else echo "Not logging in"; fi;
+    - if [ ! -z "$DOCKER_REPO" -a ! -z "$DOCKER_TAG" -a -z "$DOCKER_FILE" ]; then export DOCKER_FILE=$DOCKER_FILE_CONTEXT/$DOCKER_TAG.Dockerfile ; fi
+    - if [ ! -z "$DOCKER_FILE" -a -f "$DOCKER_FILE" ]; then  set -e; set -o pipefail; docker build -f $DOCKER_FILE -t $DOCKER_REPO:$DOCKER_TAG $DOCKER_FILE_CONTEXT; export DOCKER_BUILD_SUCCESS=$? ; else echo "Skipping build of Dockerfile $DOCKER_FILE"; fi;
+    - if [ ! -z "$DOCKER_BUILD_SUCCESS" -a -z "$DOCKER_SKIP_TEST" ]; then
+        set -e; set -o pipefail;
+        docker run --rm -ti --entrypoint /play/play $DOCKER_REPO:$DOCKER_TAG auto-test /src/openseedbox-server/ ;
+        export DOCKER_TEST_SUCCESS=$?;
+      else
+        echo "Not testing Docker image";
+      fi;
+  - &dockerPush
     - if [ "$DOCKER_BUILD_SUCCESS" == "0" -a "$DOCKER_LOGIN_SUCCESS" == "0" -a -z "$DOCKER_SKIP_PUSH" ]; then docker push $DOCKER_REPO:$DOCKER_TAG; else echo "Not pushing Docker image"; fi;
 # define build stages
 jobs:
   include:
     - &play-test
       stage: play test
-      env:
-        - PLAY_VERSION=1.3.4 JDK=openjdk7
-      install: *testInstall
-      script: play/play autotest
-    - <<: *play-test
+      addons:
+        apt:
+          packages:
+            - openjdk-8-jdk-headless
+            - transmission-daemon
       env:
         - PLAY_VERSION=1.3.4 JDK=openjdk8
-    - <<: *play-test
-      env:
-        - PLAY_VERSION=1.4.4 JDK=openjdk7
+      install: *testInstall
+      script: play/play autotest
     - <<: *play-test
       env:
         - PLAY_VERSION=1.4.4 JDK=openjdk8
@@ -62,11 +57,19 @@ jobs:
       env:
         - DOCKER_TAG=armv7hf
         - DOCKER_SKIP_TEST=skipit
+      arch: amd64
       install: *dockerInstall
       before_script: *dockerBuildAndTest
       script: *dockerPush
     - <<: *docker-build
       env:
         - DOCKER_TAG=aarch64
+        - DOCKER_SKIP_TEST=skipit
+      arch: arm64
+    - <<: *docker-build
+      env:
+        - DOCKER_TAG=latest
+        - DOCKER_FILE=$DOCKER_FILE_CONTEXT/amd64.Dockerfile
+      arch: amd64
 after_failure:
   - cat ./test-result/*.failed.html
