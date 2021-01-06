@@ -21,7 +21,7 @@ public class TransmissionTracker implements ITracker {
 	private long lastScrapeStartTime;
 	private boolean lastScrapeSucceeded;
 	private long lastScrapeTime;
-	private int lastScrapeTimedOut;
+	private boolean lastScrapeTimedOut;
 	private int leecherCount;
 	private long nextAnnounceTime;
 	private long nextScrapeTime;

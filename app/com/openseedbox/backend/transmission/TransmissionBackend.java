@@ -18,6 +18,7 @@ import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
+import java.lang.reflect.Type;
 import java.util.*;
 import org.apache.commons.codec.binary.Base64;
 import org.apache.commons.codec.digest.DigestUtils;
@@ -421,7 +422,12 @@ public class TransmissionBackend implements ITorrentBackend {
 		JsonArray torrents = r.getArguments().getAsJsonArray("torrents");
 		//Logger.info("Response: %s", torrents.toString());
 		List<ITorrent> ret = new ArrayList<ITorrent>();
-		Gson g = new Gson();
+
+		TransmissionIntBooleanDeserializer deserializer = new TransmissionIntBooleanDeserializer();
+		Gson g = new GsonBuilder()
+				.registerTypeAdapter(Boolean.class, deserializer)
+				.registerTypeAdapter(boolean.class, deserializer)
+				.create();
 		for (JsonElement torrent : torrents) {
 			ret.add(g.fromJson(torrent, TransmissionTorrent.class));
 		}
@@ -566,5 +572,22 @@ public class TransmissionBackend implements ITorrentBackend {
 			}
 		}
 	}
-	
+
+	private static class TransmissionIntBooleanDeserializer implements JsonDeserializer<Boolean> {
+		@Override
+		public Boolean deserialize(JsonElement json, Type typeOfSrc, JsonDeserializationContext context) throws JsonParseException {
+			Exception lastException;
+			try {
+				return json.getAsInt() > 0;
+			} catch (Exception e) {
+				lastException = e;
+			}
+			try {
+				return json.getAsBoolean();
+			} catch (Exception e) {
+				lastException = e;
+			}
+			throw new JsonParseException(lastException);
+		}
+	}
 }
