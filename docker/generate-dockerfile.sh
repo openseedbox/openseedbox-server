@@ -4,7 +4,6 @@ set -o pipefail
 
 archs='aarch64 amd64 armv7hf'
 for arch in $archs; do
-	baseImage='openseedbox/client'
 	suite="$arch"
 	case "$arch" in
 		aarch64)
@@ -25,7 +24,7 @@ for arch in $archs; do
 	esac;
 
 	dockerfile=$arch.Dockerfile
-	sed -e s~#{FROM}~$baseImage:$suite~g \
+	sed -e s~#{ARCH}~$suite~g \
 		-e s~#{BALENA_CROSSBUILD_BEGIN}~"$balenaCrossBuildBegin"~g \
 		-e s~#{BALENA_CROSSBUILD_END}~"$balenaCrossBuildEnd"~g \
 		Dockerfile.tpl > $dockerfile

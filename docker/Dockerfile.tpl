@@ -1,4 +1,4 @@
-FROM #{FROM}
+FROM openseedbox/client:#{ARCH}
 
 #{BALENA_CROSSBUILD_BEGIN}
 
