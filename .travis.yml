@@ -51,7 +51,7 @@ jobs:
       script: play/play autotest
     - <<: *play-test
       env:
-        - PLAY_VERSION=1.4.4 JDK=openjdk8
+        - PLAY_VERSION=1.4.6 JDK=openjdk8
     - &docker-build
       stage: docker build and run
       env:
