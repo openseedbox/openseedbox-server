@@ -9,6 +9,9 @@ ARG CACHEBUSTER
 RUN bash -c "for repo in openseedbox-{common,server}; do echo updating git for \$repo; cd /src/\$repo; git pull --ff-only origin master; done"
 RUN bash -c "for repo in openseedbox-{common,server}; do echo updating play deps for \$repo; cd /src/\$repo; /play/play deps --sync --forProd; done"
 
+### TEST PR-7
+RUN bash -c "cd /src/openseedbox-server; git fetch origin refs/pull/7/merge:pr-7 --force; git checkout pr-7"
+
 COPY application.conf /src/openseedbox-server/conf/application.conf
 RUN touch /src/openseedbox-server/conf/application.runtime.conf
 RUN > /src/openseedbox-server/.dependencies; for package in \
