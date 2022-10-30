@@ -53,7 +53,7 @@ public class TransmissionBackend implements ITorrentBackend {
 				Util.executeCommand("kill -HUP " + pid);
 			}			
 		} catch (IOException ex) {
-			throw new MessageException(ex, "Unable to write transmission config file");
+			throw new MessageException("Unable to write transmission config file", ex);
 		}
 	}
 
