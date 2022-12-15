@@ -1,17 +1,23 @@
 package com.openseedbox.test.backend;
 
+import com.openseedbox.Config;
 import com.openseedbox.backend.transmission.TransmissionBackend;
-import org.junit.Before;
+import org.apache.commons.io.FileUtils;
+import org.junit.AfterClass;
 import org.junit.Test;
 import play.test.UnitTest;
+
+import java.io.File;
+import java.io.IOException;
 
 public class TransmissionBackendNotInstalledTest extends UnitTest {
 
 	private TransmissionBackend backend = new TransmissionBackendNotInstalled();
+	private final static File pidFile = new File(Config.getBackendBasePath(), "daemon.pid");
 
-	@Before
-	public void setUp() {
-
+	@AfterClass
+	public static void tearDown() {
+		pidFile.delete();
 	}
 
 	@Test(expected = RuntimeException.class)
@@ -37,6 +43,18 @@ public class TransmissionBackendNotInstalledTest extends UnitTest {
 	@Test
 	public void testNotInstalled() {
 		assertFalse(backend.isInstalled());
+	}
+
+	@Test
+	public void testNotRunningWithStalePid() {
+		backend.stop();
+		assertFalse(backend.isRunning());
+		try {
+			FileUtils.writeStringToFile(pidFile, "1");
+			assertEquals("1", FileUtils.readFileToString(pidFile));
+		} catch (IOException e) {
+		}
+		assertFalse(backend.isRunning());
 	}
 
 }
