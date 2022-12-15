@@ -1,6 +1,7 @@
 package com.openseedbox.test.backend;
 
 import com.openseedbox.backend.transmission.TransmissionBackend;
+import org.junit.AfterClass;
 import org.junit.Before;
 import org.junit.Test;
 import play.test.UnitTest;
@@ -13,7 +14,12 @@ public class TransmissionBackendTest extends UnitTest {
 	public void setUp() {
 
 	}
-	
+
+	@Test
+	public void testInstalled() {
+		assertTrue(backend.isInstalled());
+	}
+
 	@Test
 	public void testStart() {
 		backend.stop();

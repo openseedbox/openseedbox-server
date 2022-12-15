@@ -31,6 +31,8 @@ import play.libs.WS;
 import play.libs.WS.HttpResponse;
 
 public class TransmissionBackend implements ITorrentBackend {
+
+	protected String binaryName = "transmission-daemon";
 	
 	private void writeConfigFile() {
 		File configFile = new File(Config.getBackendBasePath(), "settings.json");
@@ -61,9 +63,9 @@ public class TransmissionBackend implements ITorrentBackend {
 		if (!isRunning()) {
 			writeConfigFile();
 			String command = String.format(
-				"transmission-daemon --config-dir %s --pid-file %s 2>&1",
-				Config.getBackendBasePath(), getDaemonPidFilePath());
-			Logger.info("Starting transmission-daemon via: %s", command);
+				"%s --config-dir %s --pid-file %s 2>&1",
+				binaryName, Config.getBackendBasePath(), getDaemonPidFilePath());
+			Logger.info("Starting %s via: %s", binaryName, command);
 			String output = Util.executeCommand(command);
 			if (!StringUtils.isEmpty(output.trim())) {
 				Logger.info("Oddities starting transmission: %s", output);
@@ -134,7 +136,7 @@ public class TransmissionBackend implements ITorrentBackend {
 		String pid = FileUtils.readFileToString(pidFile);
 		if (StringUtils.isEmpty(pid)) {
 			//for some reason, sometimes transmission doesnt write its PID file but its still running
-			pid = StringUtils.trim(Util.executeCommand("ps -A | grep transmission | awk '{print $1}'"));
+			pid = StringUtils.trim(Util.executeCommand(String.format("pidof %s | awk '{print $1}'", binaryName)));
 		}
 		return pid;
 	}
@@ -212,7 +214,7 @@ public class TransmissionBackend implements ITorrentBackend {
 	}
 
 	public boolean isInstalled() {
-		String output = Util.executeCommand("which transmission-daemon");
+		String output = Util.executeCommand("which " + binaryName);
 		return !StringUtils.isEmpty(output);
 	}
 
@@ -221,7 +223,7 @@ public class TransmissionBackend implements ITorrentBackend {
 	}
 
 	public String getVersion() {
-		return Util.executeCommand("transmission-daemon -V 2>&1");
+		return Util.executeCommand(binaryName + " -V 2>&1");
 	}
 
 	public List<IPeer> getTorrentPeers(String hash) {
@@ -510,7 +512,7 @@ public class TransmissionBackend implements ITorrentBackend {
 			} catch (Exception ex) {
 				Logger.info("Error in RPC call: %s", ex);
 				if (ex.getMessage().contains("Connection refused")) {
-					throw new MessageException("Unable to connect to backend transmission-daemon!");
+					throw new MessageException("Unable to connect to backend " + binaryName + "!");
 				} else {
 					throw new MessageException(ex.getMessage());
 				}
