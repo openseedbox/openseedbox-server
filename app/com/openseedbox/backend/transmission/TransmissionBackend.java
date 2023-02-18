@@ -123,7 +123,11 @@ public class TransmissionBackend implements ITorrentBackend {
 		if (pidFile.exists()) {
 			try {
 				String pid = getDaemonPID(pidFile);
-				return binaryName.equals(Util.executeCommand("head -n1 -z /proc/" + pid + "/cmdline").trim());
+				String headCmdLine = Util.executeCommand("head -n1 -z /proc/" + pid + "/cmdline").trim();
+				return binaryName.equals(headCmdLine)
+					|| headCmdLine.contains("qemu")
+					&& Util.executeCommand("cat /proc/" + pid + "/cmdline").trim().contains(binaryName)
+				;
 			} catch (IOException ex) {
 				Logger.error("Unable to read daemon.pid file", ex);
 				return false;
