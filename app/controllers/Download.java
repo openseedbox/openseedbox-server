@@ -5,10 +5,13 @@ import com.openseedbox.code.Util;
 import com.openseedbox.jobs.GenerateNginxManifestJob;
 import java.io.File;
 import java.io.IOException;
+import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.util.HashMap;
 import java.util.Map;
 import org.apache.commons.io.FileUtils;
 import org.apache.commons.lang.StringUtils;
+import play.exceptions.UnexpectedException;
 import play.libs.MimeTypes;
 import play.mvc.Http;
 import play.mvc.Router;
@@ -128,7 +131,12 @@ public class Download extends BaseController {
 	}
 	
 	private static File getBaseDirectory(String torrentHash) {
-		return new File(Config.getTorrentsCompletePath(), torrentHash);
+		Path complete = Paths.get(Config.getTorrentsCompletePath()).normalize();
+		Path baseDirectory = complete.resolve(torrentHash).normalize();
+		if (!baseDirectory.startsWith(complete)) {
+			notFound("Bad hash value!");
+		}
+		return baseDirectory.toFile();
 	}
 
 	private static void setContentDispositionHeaderOnDemand(String fileName) {
