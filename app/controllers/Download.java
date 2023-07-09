@@ -10,6 +10,7 @@ import java.util.Map;
 import org.apache.commons.io.FileUtils;
 import org.apache.commons.lang.StringUtils;
 import play.libs.MimeTypes;
+import play.mvc.Http;
 import play.mvc.Router;
 import play.mvc.Router.ActionDefinition;
 
@@ -28,19 +29,19 @@ public class Download extends BaseController {
 			location = Config.getXSendfilePath();
 		}
 		String filePath = String.format("%s/%s/%s", location, hash, name);		
+		String fileName = new File(filePath).getName();
 		if (Config.isXSendfileEnabled()) {
-			String fileName = new File(filePath).getName();				
-			response.setHeader("X-Accel-Charset", "utf-8");			
+			response.setHeader("X-Accel-Charset", "utf-8");
 			if (StringUtils.isEmpty(debug)) {
-				response.setHeader("Content-Disposition", "attachment; filename=\"" + fileName + "\"");
+				setContentDispositionHeaderOnDemand(fileName);
 				response.setContentTypeIfNotSet(MimeTypes.getContentType(new File(filePath).getAbsolutePath()));
 				response.setHeader(Config.getXSendfileHeader(), filePath);
 			} else {
 				renderText("FilePath: " + filePath);
 			}
 		} else {
-			File f = new File(filePath);
-			renderBinary(f, Util.URLDecode(f.getName()));
+			setContentDispositionHeaderOnDemand(fileName);
+			renderBinary(new File(filePath), fileName);
 		}
 	}
 	
@@ -94,8 +95,8 @@ public class Download extends BaseController {
 		}
 		if (!Config.isNgxZipManifestOnly()) {
 			response.setHeader("X-Archive-Files", "zip");
-			response.setHeader("Content-Disposition", "attachment; filename=\"" + name + ".zip" + "\"");
-		}		
+			setContentDispositionHeaderOnDemand(name + ".zip", true);
+		}
 		response.setHeader("Last-Modified", Util.getLastModifiedHeader(baseDirectory.lastModified())); //this is so nginx mod_zip will resume the zip file
 		renderText(FileUtils.readFileToString(getNgxManifestForZip(hash)));
 	}
@@ -128,5 +129,18 @@ public class Download extends BaseController {
 	
 	private static File getBaseDirectory(String torrentHash) {
 		return new File(Config.getTorrentsCompletePath(), torrentHash);
+	}
+
+	private static void setContentDispositionHeaderOnDemand(String fileName) {
+		setContentDispositionHeaderOnDemand(fileName, false);
+	}
+
+	private static void setContentDispositionHeaderOnDemand(String fileName, Boolean always) {
+		String urlEncodedFileName = Util.URLEncode(fileName);
+		if (urlEncodedFileName.contains("+") || always) {
+			String encoding = Http.Response.current().encoding;
+			String contentDisposition = "%1$s; filename*=" + encoding + "''%2$s; filename=\"%2$s\"";
+			response.setHeader("Content-Disposition", String.format(contentDisposition, "attachment", urlEncodedFileName.replace("+","%20")));
+		}
 	}
 }
