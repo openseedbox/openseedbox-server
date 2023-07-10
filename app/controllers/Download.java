@@ -24,27 +24,28 @@ public class Download extends BaseController {
 			downloadFileZip(hash, name);
 			return;
 		}
-		String location = Config.getTorrentsCompletePath();
-		if (!(new File(location).exists())) {
-			notFound(String.format("File %s doesnt exist, it appears the download link was constructed incorrectly.", location));
+		File location = getBaseDirectory(hash);
+		if (!(location.exists())) {
+			notFound(String.format("Directory %s doesnt exist, it appears the download link was constructed incorrectly.", hash));
 		}
-		if (Config.isXSendfileEnabled()) {
-			location = Config.getXSendfilePath();
+		Path filePath = location.toPath().resolve(name).normalize();
+		if (!filePath.startsWith(location.toPath())) {
+			notFound("It appears the download link was constructed incorrectly.");
 		}
-		String filePath = String.format("%s/%s/%s", location, hash, name);		
-		String fileName = new File(filePath).getName();
+		String fileName = filePath.getFileName().toString();
 		if (Config.isXSendfileEnabled()) {
+			filePath = Paths.get(Config.getXSendfilePath(), filePath.toString().replace(location.getPath(), hash)).normalize();
 			response.setHeader("X-Accel-Charset", "utf-8");
 			if (StringUtils.isEmpty(debug)) {
 				setContentDispositionHeaderOnDemand(fileName);
-				response.setContentTypeIfNotSet(MimeTypes.getContentType(new File(filePath).getAbsolutePath()));
-				response.setHeader(Config.getXSendfileHeader(), filePath);
+				response.setContentTypeIfNotSet(MimeTypes.getContentType(filePath.toFile().getAbsolutePath()));
+				response.setHeader(Config.getXSendfileHeader(), filePath.toString());
 			} else {
 				renderText("FilePath: " + filePath);
 			}
 		} else {
 			setContentDispositionHeaderOnDemand(fileName);
-			renderBinary(new File(filePath), fileName);
+			renderBinary(filePath.toFile(), fileName);
 		}
 	}
 	
