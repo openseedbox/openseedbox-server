@@ -49,6 +49,10 @@ public class TransmissionPeer implements IPeer {
 		return address;
 	}
 
+	public double getProgress() {
+		return progress;
+	}
+
 	public class TransmissionPeerFrom {
 
 		public int fromCache;
